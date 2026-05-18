@@ -1,8 +1,7 @@
 import hashlib
 import streamlit as st
-import google.generativeai as genai
 from PIL import Image
-from utils import show_auction_prices, fetch_yahoo_lowest_price
+from utils import show_auction_prices, fetch_yahoo_lowest_price, generate_listing_text
 
 
 st.markdown("""
@@ -140,6 +139,7 @@ def keyword_guess(text: str):
 
 def gemini_text_guess(text: str):
     try:
+        import google.generativeai as genai
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel("gemini-1.5-flash")
         prompt = f"""以下のメルカリ商品説明文を読んで、商品の状態を判定してください。
@@ -158,32 +158,10 @@ def gemini_text_guess(text: str):
         return None
 
 
-def gemini_generate_listing(product_name: str, condition: str, sell_price: int, ship: str) -> str:
-    """Geminiでメルカリ出品文を生成する"""
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    prompt = f"""メルカリに出品するための商品説明文を作成してください。
-
-商品名: {product_name}
-状態: {condition}
-販売価格: ¥{sell_price:,}
-配送方法: {ship}
-
-条件：
-- ですます調で自然な文体
-- 状態を具体的に説明（{condition}の場合の一般的な特徴を書く）
-- 購入者が安心できる丁寧な内容
-- 絵文字を適度に使う
-- 400文字以内
-- 最後は「よろしくお願いします🙇」で締める
-
-出品文だけを出力してください。"""
-    response = model.generate_content(prompt)
-    return response.text.strip()
-
 
 def gemini_vision_guess(photo):
     try:
+        import google.generativeai as genai
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel("gemini-1.5-flash")
         img = Image.open(photo)
@@ -338,10 +316,12 @@ if yahoo_price > 0:
             regen_btn = st.button("🔄 作り直す", key="regen_listing_btn",
                                   use_container_width=True)
 
-        if gen_btn or (regen_btn and st.session_state.generated_listing):
+        if regen_btn and not st.session_state.generated_listing:
+            st.warning("先に「✨ 出品文を生成する」を押してください")
+        elif gen_btn or regen_btn:
             with st.spinner("🤖 Geminiが出品文を作成中..."):
                 try:
-                    text = gemini_generate_listing(
+                    text = generate_listing_text(
                         product_name.strip(), condition, sell, ship_name
                     )
                     st.session_state.generated_listing = text

@@ -62,7 +62,35 @@ if st.session_state.get("search_keyword") and st.session_state.get("search_resul
                 },
                 timeout=5
             )
-            st.session_state["search_results"] = res.json().get("hits", [])
+            hits_data = res.json().get("hits", [])
+            st.session_state["search_results"] = hits_data
+
+            # 履歴への保存はここ（API取得直後）で1回だけ実行する
+            cost_at_search = st.session_state.get("search_cost", 0)
+            ship_at_search = st.session_state.get("search_ship", 750)
+            sell_at_search = st.session_state.get("search_sell", 0)
+            if cost_at_search > 0 and "search_history" in st.session_state:
+                new_history = list(st.session_state.search_history)
+                for item in hits_data:
+                    name  = item.get("name", "不明")
+                    price = item.get("price", None)
+                    sell  = sell_at_search if sell_at_search > 0 else (
+                        round(int(price) * 0.62) if price else 0
+                    )
+                    if sell > 0:
+                        profit      = sell - cost_at_search - ship_at_search - round(sell * 0.10) - 200
+                        profit_rate = round(profit / sell * 100, 1)
+                        new_history = [h for h in new_history if h.get("name") != name]
+                        new_history.append({
+                            "name": name,
+                            "jan": "",
+                            "cost": cost_at_search,
+                            "profit": profit,
+                            "profit_rate": profit_rate,
+                            "time": datetime.now().strftime("%H:%M"),
+                        })
+                st.session_state.search_history = new_history[-30:]
+
         except Exception as e:
             st.error(f"通信エラー：{e}")
             st.session_state["search_results"] = []
@@ -141,19 +169,6 @@ if hits:
                             })
                             st.rerun()
 
-                    # 履歴に保存（同じ商品名は上書き）
-                    if "search_history" not in st.session_state:
-                        st.session_state.search_history = []
-                    history = [h for h in st.session_state.search_history if h.get("name") != name]
-                    history.append({
-                        "name": name,
-                        "jan": "",
-                        "cost": cost_used,
-                        "profit": profit,
-                        "profit_rate": profit_rate,
-                        "time": datetime.now().strftime("%H:%M"),
-                    })
-                    st.session_state.search_history = history[-30:]
 
 elif st.session_state.get("search_results") is not None:
     st.warning("商品が見つかりませんでした。別のキーワードで試してください。")

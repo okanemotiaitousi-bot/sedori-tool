@@ -7,7 +7,6 @@
 import urllib.parse
 import requests
 import streamlit as st
-import google.generativeai as genai
 
 
 # ── Gemini 出品文自動生成 ─────────────────────────────────
@@ -16,6 +15,7 @@ def generate_listing_text(product_name: str, condition: str, sell_price: int, sh
     Gemini で メルカリ出品文を自動生成する。
     condition : 未使用・新品同様 / 良い / 可 / 不可
     """
+    import google.generativeai as genai
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel("gemini-1.5-flash")
     prompt = f"""メルカリに出品するための商品説明文を作成してください。

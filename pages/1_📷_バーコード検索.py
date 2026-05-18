@@ -192,24 +192,24 @@ elif st.session_state.barcode_screen == "result":
     # 入力するたびにsession stateに保存
     st.session_state.barcode_cost = cost
 
+    # 仕入れ値が未入力（0）でも計算・表示する（0円仕入れも有効な入力として扱う）
+    if p["price"] and int(p["price"]) < 1500:
+        ship_cost, ship_name = 230, "ゆうパケット"
+    else:
+        ship_cost, ship_name = 750, "らくらく60"
+
+    if p["price"] and int(p["price"]) > 0:
+        sell = round(int(p["price"]) * 0.62)
+    else:
+        sell = round((cost + ship_cost + 200) / (1 - 0.10) / (1 - 0.20))
+
+    profit = sell - cost - ship_cost - round(sell * 0.10) - 200
+    profit_rate = round(profit / sell * 100, 1) if sell > 0 else 0
+
+    # 履歴に追加（仕入れ値が入力済みのときのみ）
     if cost > 0:
-        # 履歴に保存（同じ商品の重複は更新）
         if "search_history" not in st.session_state:
             st.session_state.search_history = []
-        if p["price"] and int(p["price"]) < 1500:
-            ship_cost, ship_name = 230, "ゆうパケット"
-        else:
-            ship_cost, ship_name = 750, "らくらく60"
-
-        if p["price"] and int(p["price"]) > 0:
-            sell = round(int(p["price"]) * 0.62)
-        else:
-            sell = round((cost + ship_cost + 200) / (1 - 0.10) / (1 - 0.20))
-
-        profit = sell - cost - ship_cost - round(sell * 0.10) - 200
-        profit_rate = round(profit / sell * 100, 1) if sell > 0 else 0
-
-        # 履歴に追加（同じJANコードは上書き）
         jan = st.session_state.barcode_jan
         history = st.session_state.search_history
         history = [h for h in history if h.get("jan") != jan]
@@ -221,57 +221,60 @@ elif st.session_state.barcode_screen == "result":
             "profit_rate": profit_rate,
             "time": datetime.now().strftime("%H:%M"),
         })
-        st.session_state.search_history = history[-30:]  # 最大30件
+        st.session_state.search_history = history[-30:]
 
-        if profit >= 800 and profit_rate >= 20:
-            st.markdown(
-                f'<div class="verdict-buy">✅ 買い！<br><small>推定 ¥{profit:,} 利益</small></div>',
-                unsafe_allow_html=True,
-            )
-        elif profit >= 200 and profit_rate >= 8:
-            st.markdown(
-                f'<div class="verdict-maybe">🤔 検討あり<br><small>推定 ¥{profit:,} 利益</small></div>',
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(
-                f'<div class="verdict-bad">❌ やめとこう<br><small>推定 ¥{profit:,}</small></div>',
-                unsafe_allow_html=True,
-            )
+    if cost == 0:
+        st.info("仕入れ値を入力すると判定が更新されます（0円のまま計算することも可能です）")
 
-        st.caption(f"推定売値 ¥{sell:,}　送料 {ship_name}（¥{ship_cost}）で計算")
+    if profit >= 800 and profit_rate >= 20:
+        st.markdown(
+            f'<div class="verdict-buy">✅ 買い！<br><small>推定 ¥{profit:,} 利益</small></div>',
+            unsafe_allow_html=True,
+        )
+    elif profit >= 200 and profit_rate >= 8:
+        st.markdown(
+            f'<div class="verdict-maybe">🤔 検討あり<br><small>推定 ¥{profit:,} 利益</small></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            f'<div class="verdict-bad">❌ やめとこう<br><small>推定 ¥{profit:,}</small></div>',
+            unsafe_allow_html=True,
+        )
 
-        # ── ヤフオク落札相場 ────────────────────────────
-        with st.expander("📦 ヤフオク落札相場を見る"):
-            cache_key = st.session_state.barcode_jan or p["name"][:30]
-            show_auction_prices(p["name"], cache_key)
+    st.caption(f"推定売値 ¥{sell:,}　送料 {ship_name}（¥{ship_cost}）で計算")
 
-        # ── メモに追加 ──────────────────────────────
-        if "memo_list" not in st.session_state:
-            st.session_state.memo_list = []
-        jan = st.session_state.barcode_jan
-        already = any(m.get("jan") == jan for m in st.session_state.memo_list)
-        if already:
-            st.info("📝 メモ帳に保存済み")
-        else:
-            if st.button("📝 仕入れ候補にメモ", key="btn_add_memo"):
-                st.session_state.memo_list.append({
-                    "name": p["name"],
-                    "jan": jan,
-                    "cost": cost,
-                    "sell": sell,
-                    "profit": profit,
-                    "profit_rate": profit_rate,
-                    "time": datetime.now().strftime("%H:%M"),
-                })
-                st.rerun()
+    # ── ヤフオク落札相場 ────────────────────────────
+    with st.expander("📦 ヤフオク落札相場を見る"):
+        cache_key = st.session_state.barcode_jan or p["name"][:30]
+        show_auction_prices(p["name"], cache_key)
 
-        st.markdown("")
-        if st.button("📊 詳細を見る", key="btn_to_detail"):
-            st.session_state.barcode_sell = sell
-            st.session_state.barcode_ship_cost = ship_cost
-            st.session_state.barcode_screen = "detail"
+    # ── メモに追加 ──────────────────────────────
+    if "memo_list" not in st.session_state:
+        st.session_state.memo_list = []
+    jan = st.session_state.barcode_jan
+    already = any(m.get("jan") == jan for m in st.session_state.memo_list)
+    if already:
+        st.info("📝 メモ帳に保存済み")
+    else:
+        if st.button("📝 仕入れ候補にメモ", key="btn_add_memo"):
+            st.session_state.memo_list.append({
+                "name": p["name"],
+                "jan": jan,
+                "cost": cost,
+                "sell": sell,
+                "profit": profit,
+                "profit_rate": profit_rate,
+                "time": datetime.now().strftime("%H:%M"),
+            })
             st.rerun()
+
+    st.markdown("")
+    if st.button("📊 詳細を見る", key="btn_to_detail"):
+        st.session_state.barcode_sell = sell
+        st.session_state.barcode_ship_cost = ship_cost
+        st.session_state.barcode_screen = "detail"
+        st.rerun()
 
     st.markdown("")
     if st.button("🔄 別の商品を検索", key="btn_back_to_scan"):
@@ -328,9 +331,9 @@ elif st.session_state.barcode_screen == "detail":
     best_platform = ""
     for name, fee_rate, transfer in [
         ("メルカリ", 0.10, 200),
-        ("ラクマ", 0.06, 0),
+        ("ラクマ", 0.066, 0),
         ("PayPayフリマ", 0.05, 0),
-        ("ヤフオク", 0.10, 0),
+        ("ヤフオク", 0.088, 0),
     ]:
         pr = sell2 - cost - sc2 - round(sell2 * fee_rate) - transfer
         pr_rate = round(pr / sell2 * 100, 1) if sell2 > 0 else 0

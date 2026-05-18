@@ -1,7 +1,5 @@
 streamlit
 requests
-opencv-python-headless
 pyzbar
 Pillow
-numpy
 google-generativeai

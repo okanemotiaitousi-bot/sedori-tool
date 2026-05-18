@@ -185,9 +185,9 @@ with st.expander("📊 詳細・おすすめ売値を見る"):
         best_platform = ""
         for name, fee_rate, transfer in [
             ("メルカリ", 0.10, 200),
-            ("ラクマ", 0.06, 0),
+            ("ラクマ", 0.066, 0),
             ("PayPayフリマ", 0.05, 0),
-            ("ヤフオク", 0.10, 0),
+            ("ヤフオク", 0.088, 0),
         ]:
             pr = sell - cost - ship_cost - round(sell * fee_rate) - transfer
             pr_rate = round(pr / sell * 100, 1) if sell > 0 else 0
