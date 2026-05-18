@@ -108,6 +108,18 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# ── 今日の統計 ──────────────────────────────────────────
+_h = st.session_state.get("search_history", [])
+if _h:
+    _best  = max(h["profit"] for h in _h)
+    _avg_r = round(sum(h["profit_rate"] for h in _h) / len(_h), 1)
+    st.markdown('<div style="padding:0 1rem 0.5rem">', unsafe_allow_html=True)
+    sc1, sc2, sc3 = st.columns(3)
+    sc1.metric("検索件数",  f"{len(_h)} 件")
+    sc2.metric("最高利益",  f"¥{_best:,}")
+    sc3.metric("平均利益率", f"{_avg_r}%")
+    st.markdown('</div>', unsafe_allow_html=True)
+
 # ── クイックアクセス ────────────────────────────────────
 st.markdown('<div class="quick-area">', unsafe_allow_html=True)
 c1, c2 = st.columns(2)

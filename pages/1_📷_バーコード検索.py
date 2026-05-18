@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from PIL import Image
 from datetime import datetime
-from utils import show_auction_prices
+from utils import show_auction_prices, generate_listing_text
 
 st.markdown("""
 <style>
@@ -39,6 +39,7 @@ for key, default in [
     ("barcode_cost", 0),
     ("barcode_sell", 0),
     ("barcode_ship_cost", 750),
+    ("barcode_listing", ""),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -343,7 +344,37 @@ elif st.session_state.barcode_screen == "detail":
     if best_platform:
         st.success(f"✅ 最も利益が出るのは **{best_platform}**（¥{best_profit:,}）")
 
+    # ── 出品文AI自動生成 ────────────────────────────
+    st.divider()
+    st.markdown("**✨ AIで出品文を自動生成**")
+    p2 = st.session_state.barcode_product or {}
+    pname = p2.get("name", "")
+    if pname:
+        CONDS = ["未使用・新品同様", "良い", "可", "不可"]
+        sel_cond = st.selectbox("状態を選んでください", CONDS, index=1,
+                                key="detail_cond_select")
+        col_g, col_r = st.columns([3, 1])
+        with col_g:
+            gen = st.button("✨ 出品文を生成する", key="detail_gen_btn",
+                            type="primary", use_container_width=True)
+        with col_r:
+            regen = st.button("🔄 作り直す", key="detail_regen_btn",
+                              use_container_width=True)
+        if gen or regen:
+            with st.spinner("🤖 Geminiが出品文を作成中..."):
+                try:
+                    st.session_state.barcode_listing = generate_listing_text(
+                        pname, sel_cond, sell2, ship2
+                    )
+                except Exception:
+                    st.error("生成に失敗しました。もう一度お試しください。")
+        if st.session_state.barcode_listing:
+            st.text_area("↓ コピーしてメルカリに貼り付けてください",
+                         value=st.session_state.barcode_listing,
+                         height=200, key="detail_listing_out")
+
     st.markdown("")
     if st.button("← 戻る", key="btn_detail_back"):
         st.session_state.barcode_screen = "result"
+        st.session_state.barcode_listing = ""
         st.rerun()

@@ -2,10 +2,40 @@
 共通ユーティリティ
 - ヤフオク落札相場取得・表示
 - Yahoo!ショッピング最安値取得
+- Gemini 出品文自動生成
 """
 import urllib.parse
 import requests
 import streamlit as st
+import google.generativeai as genai
+
+
+# ── Gemini 出品文自動生成 ─────────────────────────────────
+def generate_listing_text(product_name: str, condition: str, sell_price: int, ship_name: str) -> str:
+    """
+    Gemini で メルカリ出品文を自動生成する。
+    condition : 未使用・新品同様 / 良い / 可 / 不可
+    """
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    prompt = f"""メルカリに出品するための商品説明文を作成してください。
+
+商品名: {product_name}
+状態: {condition}
+販売価格: ¥{sell_price:,}
+配送方法: {ship_name}
+
+条件：
+- ですます調で自然な文体
+- 状態を具体的に説明（{condition}の場合の一般的な特徴を書く）
+- 購入者が安心できる丁寧な内容
+- 絵文字を適度に使う
+- 400文字以内
+- 最後は「よろしくお願いします🙇」で締める
+
+出品文だけを出力してください。"""
+    response = model.generate_content(prompt)
+    return response.text.strip()
 
 
 # ── Yahoo!ショッピング最安値取得 ──────────────────────────

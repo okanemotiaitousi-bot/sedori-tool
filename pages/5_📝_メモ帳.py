@@ -1,4 +1,13 @@
 import streamlit as st
+from utils import generate_listing_text
+
+CONDS = ["未使用・新品同様", "良い", "可", "不可"]
+SHIP_OPTIONS = [
+    "らくらくメルカリ便 60サイズ（750円）",
+    "ゆうパケット（230円）",
+    "ネコポス（210円）",
+    "らくらくメルカリ便 80サイズ（850円）",
+]
 
 st.markdown("""
 <style>
@@ -99,6 +108,33 @@ for i, m in enumerate(reversed(memo_list)):
      </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # 出品文生成エクスパンダー
+    with st.expander("✨ 出品文をAIで作る"):
+        sel_cond = st.selectbox("状態", CONDS, index=1,
+                                key=f"memo_cond_{idx}")
+        sel_ship = st.selectbox("配送方法", SHIP_OPTIONS,
+                                key=f"memo_ship_{idx}")
+        col_g, col_r = st.columns([3, 1])
+        with col_g:
+            do_gen = st.button("✨ 生成する", key=f"memo_gen_{idx}",
+                               type="primary", use_container_width=True)
+        with col_r:
+            do_re  = st.button("🔄", key=f"memo_regen_{idx}",
+                               use_container_width=True)
+        lkey = f"memo_listing_{idx}"
+        if do_gen or do_re:
+            with st.spinner("🤖 作成中..."):
+                try:
+                    st.session_state[lkey] = generate_listing_text(
+                        m["name"], sel_cond, m.get("sell", 0), sel_ship
+                    )
+                except Exception:
+                    st.error("生成に失敗しました")
+        if st.session_state.get(lkey):
+            st.text_area("コピーして使ってください",
+                         value=st.session_state[lkey],
+                         height=180, key=f"memo_listing_out_{idx}")
 
     if st.button("🗑️ 削除", key=f"del_memo_{idx}"):
         delete_idx = idx
