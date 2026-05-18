@@ -1,11 +1,13 @@
 import streamlit as st
 import requests
+import numpy as np
+from PIL import Image
 from profit_calc import judge
 
 st.set_page_config(page_title="バーコード検索", page_icon="📷", layout="centered")
 
 st.title("📷 バーコード検索")
-st.caption("JAN コードを入力して商品の相場と利益をチェック（スクレイピングなし・安全）")
+st.caption("JAN コードを入力または撮影して商品の相場と利益をチェック（スクレイピングなし・安全）")
 st.divider()
 
 # ── プラットフォームごとの手数料設定 ──────────────────────────
@@ -25,9 +27,56 @@ def calc_by_platform(cost, sell, shipping, platform_key):
     profit_rate = (profit / sell * 100) if sell > 0 else 0
     return round(profit), round(profit_rate, 1), round(fee)
 
-# ── JAN コード入力 ──────────────────────────────────────────
-jan = st.text_input("JAN コードを入力（バーコードの数字）", placeholder="例：4901777374300")
+def decode_barcode_from_image(pil_image):
+    """画像からバーコードを読み取る"""
+    try:
+        from pyzbar import pyzbar
+        barcodes = pyzbar.decode(pil_image)
+        for barcode in barcodes:
+            return barcode.data.decode("utf-8")
+    except Exception:
+        pass
 
+    try:
+        import cv2
+        img_array = np.array(pil_image.convert("RGB"))
+        img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+        detector = cv2.barcode_BarcodeDetector()
+        retval, decoded_info, _, _ = detector.detectAndDecode(img_bgr)
+        if retval:
+            for info in decoded_info:
+                if info:
+                    return info
+    except Exception:
+        pass
+
+    return None
+
+# ── バーコード入力（カメラ or 手打ち） ───────────────────────
+tab1, tab2 = st.tabs(["📷 カメラで撮影", "⌨️ 手打ちで入力"])
+
+jan = ""
+
+with tab1:
+    st.info("バーコードをカメラで撮影してください。スマホの場合はそのままカメラが起動します。")
+    photo = st.camera_input("バーコードを撮影")
+
+    if photo:
+        image = Image.open(photo)
+        detected = decode_barcode_from_image(image)
+
+        if detected:
+            st.success(f"読み取り成功！JAN コード：{detected}")
+            jan = detected
+        else:
+            st.warning("バーコードを読み取れませんでした。バーコードに近づけて再撮影するか、手打ちで入力してください。")
+
+with tab2:
+    jan_input = st.text_input("JAN コードを入力（バーコードの数字）", placeholder="例：4901777374300")
+    if jan_input:
+        jan = jan_input
+
+# ── 商品検索 ─────────────────────────────────────────────────
 if jan:
     with st.spinner("商品情報を検索中..."):
         try:
@@ -63,7 +112,6 @@ if jan:
                 st.write(f"参考最安値：**${amazon_price}**")
             if description:
                 st.caption(description[:100] + "...")
-
     else:
         product_name = "（商品名不明）"
         st.warning("商品情報が見つかりませんでした。手動で入力してください。")
