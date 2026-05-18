@@ -245,6 +245,26 @@ elif st.session_state.barcode_screen == "result":
             cache_key = st.session_state.barcode_jan or p["name"][:30]
             show_auction_prices(p["name"], cache_key)
 
+        # ── メモに追加 ──────────────────────────────
+        if "memo_list" not in st.session_state:
+            st.session_state.memo_list = []
+        jan = st.session_state.barcode_jan
+        already = any(m.get("jan") == jan for m in st.session_state.memo_list)
+        if already:
+            st.info("📝 メモ帳に保存済み")
+        else:
+            if st.button("📝 仕入れ候補にメモ", key="btn_add_memo"):
+                st.session_state.memo_list.append({
+                    "name": p["name"],
+                    "jan": jan,
+                    "cost": cost,
+                    "sell": sell,
+                    "profit": profit,
+                    "profit_rate": profit_rate,
+                    "time": datetime.now().strftime("%H:%M"),
+                })
+                st.rerun()
+
         st.markdown("")
         if st.button("📊 詳細を見る", key="btn_to_detail"):
             st.session_state.barcode_sell = sell

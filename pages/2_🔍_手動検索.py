@@ -122,6 +122,25 @@ if hits:
                     with st.expander("📦 ヤフオク落札相場を見る"):
                         show_auction_prices(name, name[:30])
 
+                    # メモに追加ボタン
+                    if "memo_list" not in st.session_state:
+                        st.session_state.memo_list = []
+                    already = any(m.get("name") == name for m in st.session_state.memo_list)
+                    if already:
+                        st.info("📝 メモ帳に保存済み")
+                    else:
+                        if st.button("📝 仕入れ候補にメモ", key=f"memo_{name[:20]}"):
+                            st.session_state.memo_list.append({
+                                "name": name,
+                                "jan": "",
+                                "cost": cost_used,
+                                "sell": sell,
+                                "profit": profit,
+                                "profit_rate": profit_rate,
+                                "time": datetime.now().strftime("%H:%M"),
+                            })
+                            st.rerun()
+
                     # 履歴に保存（同じ商品名は上書き）
                     if "search_history" not in st.session_state:
                         st.session_state.search_history = []

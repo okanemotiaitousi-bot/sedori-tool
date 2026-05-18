@@ -64,6 +64,19 @@ st.markdown("""
  .verdict-title { font-size: 1.8rem; font-weight: 900; }
  .verdict-sub { font-size: 0.9rem; margin-top: 0.3rem; opacity: 0.9; }
 
+ /* ランキング */
+ .rank-area { padding: 0 1rem; margin-top: 1.5rem; }
+ .rank-item {
+  display: flex; align-items: center; gap: 0.7rem;
+  background: #f8f9fa; border-radius: 10px;
+  padding: 0.7rem 0.9rem; margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+ }
+ .rank-badge { font-size: 1.3rem; width: 1.6rem; text-align: center; flex-shrink: 0; }
+ .rank-name { flex: 1; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+ .rank-profit { font-weight: bold; white-space: nowrap; }
+ .rank-rate { color: #888; font-size: 0.78rem; white-space: nowrap; }
+
  /* 履歴カード */
  .history-area { padding: 0 1rem; margin-top: 1.5rem; }
  .history-item {
@@ -178,6 +191,28 @@ with st.expander("📊 詳細・おすすめ売値を見る"):
         st.caption("売値を入力すると詳細が表示されます")
 
 st.markdown('</div>', unsafe_allow_html=True)
+
+# ── 利益率ランキング ─────────────────────────────────────
+history = st.session_state.get("search_history", [])
+RANK_ICONS = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+
+if len(history) >= 2:
+    ranked = sorted(history, key=lambda x: x["profit_rate"], reverse=True)[:5]
+    st.markdown('<div class="rank-area">', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🏆 利益率ランキング（今セッション）</div>', unsafe_allow_html=True)
+    for i, item in enumerate(ranked):
+        p = item["profit"]
+        color = "profit-pos" if p >= 500 else ("profit-mid" if p >= 0 else "profit-neg")
+        profit_str = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
+        st.markdown(f"""
+        <div class="rank-item">
+         <span class="rank-badge">{RANK_ICONS[i]}</span>
+         <span class="rank-name">{item['name'][:20]}</span>
+         <span class="rank-profit {color}">{profit_str}</span>
+         <span class="rank-rate">{item['profit_rate']}%</span>
+        </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ── 検索履歴 ────────────────────────────────────────────
 history = st.session_state.get("search_history", [])
