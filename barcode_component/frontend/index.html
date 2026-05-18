@@ -11,7 +11,7 @@ body {
   overflow: hidden;
 }
 #wrapper { position: relative; width: 100%; background: #000; }
-video { width: 100%; display: block; max-height: 260px; object-fit: cover; }
+video { width: 100%; height: 240px; display: block; object-fit: cover; background:#000; }
 #overlay {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
@@ -124,9 +124,15 @@ async function startCamera() {
       }
     });
     video.srcObject = stream;
-    await video.play();
-    updateHeight();
-    requestAnimationFrame(scanLoop);
+
+    // play()を強制待機せず、再生開始イベントでスキャン開始
+    video.addEventListener("playing", () => {
+      updateHeight();
+      requestAnimationFrame(scanLoop);
+    }, { once: true });
+
+    // play()はエラーを無視（autoplay属性で自動再生される）
+    video.play().catch(() => {});
 
   } catch (err) {
     if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
@@ -168,9 +174,10 @@ async function scanLoop() {
   requestAnimationFrame(scanLoop);
 }
 
-// ── 初期化：カメラを最初に起動してからStreamlitに通知 ──
-stHeight(300); // 先に高さを確保
-startCamera().then(() => stReady());
+// ── 初期化 ──────────────────────────────────────────────
+stReady();
+stHeight(320);
+startCamera();
 </script>
 </body>
 </html>
