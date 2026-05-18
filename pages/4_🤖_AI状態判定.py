@@ -66,11 +66,42 @@ ship_map = {
 ship_cost = ship_map[ship_name]
 
 st.divider()
+
+# ── 説明文から自動判定 ────────────────────────────────────
+description_input = st.text_area(
+    "📝 商品の説明文を貼り付ける（任意）",
+    placeholder="例：動作確認済み　傷・汚れあり　付属品なし　ジャンク",
+    height=80
+)
+
+def guess_condition(text):
+    text = text.lower()
+    if any(w in text for w in ["未使用", "新品", "未開封", "デッドストック", "新品同様"]):
+        return "未使用・新品同様"
+    elif any(w in text for w in ["ジャンク", "動作不良", "不動", "破損", "割れ", "欠品", "難あり"]):
+        return "不可"
+    elif any(w in text for w in ["傷あり", "汚れあり", "使用感", "使用済み", "やや", "若干"]):
+        return "可"
+    elif any(w in text for w in ["美品", "綺麗", "良好", "目立つ傷なし", "ほぼ", "きれい"]):
+        return "良い"
+    return None
+
+auto_condition = None
+if description_input:
+    auto_condition = guess_condition(description_input)
+    if auto_condition:
+        st.success(f"✅ 説明文から「**{auto_condition}**」と判定しました")
+    else:
+        st.warning("判定できませんでした。下から手動で選んでください。")
+
 st.markdown("### 📋 商品の状態を選んでください")
+
+default_index = list(CONDITION_INFO.keys()).index(auto_condition) if auto_condition else 0
 
 condition = st.radio(
     "状態",
     list(CONDITION_INFO.keys()),
+    index=default_index,
     label_visibility="collapsed"
 )
 
