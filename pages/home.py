@@ -3,7 +3,7 @@ from datetime import datetime
 
 st.markdown("""
 <style>
- .block-container { padding: 0 0 3rem; max-width: 480px; margin: auto; }
+ .block-container { padding: 0 0 3rem !important; max-width: 480px !important; margin: 0 auto !important; }
 
  /* ヒーローバナー */
  .hero {
