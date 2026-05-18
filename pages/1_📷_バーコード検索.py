@@ -86,13 +86,16 @@ if jan:
                 params={
                     "applicationId": app_id,
                     "keyword": jan,
-                    "hits": 1,
+                    "hits": 3,
                     "sort": "standard",
                 },
                 timeout=5
             )
             data = res.json()
-        except Exception:
+            if "error" in data:
+                st.error(f"APIエラー：{data.get('error_description', data.get('error'))}")
+        except Exception as e:
+            st.error(f"通信エラー：{e}")
             data = {}
 
     items = data.get("Items", [])
