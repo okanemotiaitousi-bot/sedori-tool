@@ -95,5 +95,32 @@ elif profit >= 0:
 else:
     st.markdown('<div class="result-bad">✕ 赤字。やめとこう</div>', unsafe_allow_html=True)
 
+with st.expander("📊 詳細・おすすめ売値を見る"):
+    breakeven   = round((cost + ship_cost + 200) / (1 - 0.10))
+    recommended = round((cost + ship_cost + 200) / (1 - 0.10) / (1 - 0.20))
+    c1, c2 = st.columns(2)
+    c1.metric("最低売値（損益分岐点）", f"¥{breakeven:,}")
+    c2.metric("おすすめ売値（利益率20%）", f"¥{recommended:,}")
+
+    st.markdown("**プラットフォーム別利益**")
+    best_profit   = -999999
+    best_platform = ""
+    for name, fee_rate, transfer in [
+        ("メルカリ", 0.10, 200),
+        ("ラクマ", 0.06, 0),
+        ("PayPayフリマ", 0.05, 0),
+        ("ヤフオク", 0.10, 0),
+    ]:
+        pr = sell - cost - ship_cost - round(sell * fee_rate) - transfer
+        pr_rate = round(pr / sell * 100, 1) if sell > 0 else 0
+        if pr > best_profit:
+            best_profit   = pr
+            best_platform = name
+        c1, c2 = st.columns([2, 1])
+        c1.write(f"**{name}**")
+        c2.write(f"¥{pr:,}（{pr_rate}%）")
+    if best_platform:
+        st.success(f"✅ 最も利益が出るのは **{best_platform}**（¥{best_profit:,}）")
+
 st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
 st.caption("バーコードスキャン・複数サイト比較は左メニューの「バーコード検索」から")
