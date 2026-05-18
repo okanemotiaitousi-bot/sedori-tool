@@ -207,6 +207,8 @@ elif st.session_state.screen == "detail":
     c2.metric("おすすめ売値", f"¥{recommended:,}")
 
     st.markdown("**プラットフォーム別利益**")
+    best_profit   = -999999
+    best_platform = ""
     for name, fee_rate, transfer in [
         ("メルカリ", 0.10, 200),
         ("ラクマ", 0.06, 0),
@@ -215,9 +217,15 @@ elif st.session_state.screen == "detail":
     ]:
         pr = sell2 - cost - sc2 - round(sell2 * fee_rate) - transfer
         pr_rate = round(pr / sell2 * 100, 1) if sell2 > 0 else 0
+        if pr > best_profit:
+            best_profit   = pr
+            best_platform = name
         c1, c2 = st.columns([2, 1])
         c1.write(f"**{name}**")
         c2.write(f"¥{pr:,}（{pr_rate}%）")
+
+    if best_platform:
+        st.success(f"✅ 最も利益が出るのは **{best_platform}**（¥{best_profit:,}）")
 
     if st.button("← 戻る"):
         st.session_state.screen = "result"
