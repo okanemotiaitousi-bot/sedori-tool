@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from datetime import datetime
+from utils import show_auction_prices
 
 
 st.markdown("""
@@ -117,6 +118,9 @@ if hits:
                         st.warning("🤔 検討あり")
                     else:
                         st.error("❌ やめとこう")
+
+                    with st.expander("📦 ヤフオク落札相場を見る"):
+                        show_auction_prices(name, name[:30])
 
                     # 履歴に保存（同じ商品名は上書き）
                     if "search_history" not in st.session_state:

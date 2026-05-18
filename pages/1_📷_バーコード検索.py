@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from PIL import Image
 from datetime import datetime
+from utils import show_auction_prices
 
 st.markdown("""
 <style>
@@ -238,6 +239,11 @@ elif st.session_state.barcode_screen == "result":
             )
 
         st.caption(f"推定売値 ¥{sell:,}　送料 {ship_name}（¥{ship_cost}）で計算")
+
+        # ── ヤフオク落札相場 ────────────────────────────
+        with st.expander("📦 ヤフオク落札相場を見る"):
+            cache_key = st.session_state.barcode_jan or p["name"][:30]
+            show_auction_prices(p["name"], cache_key)
 
         st.markdown("")
         if st.button("📊 詳細を見る", key="btn_to_detail"):
