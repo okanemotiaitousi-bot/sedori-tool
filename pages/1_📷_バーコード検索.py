@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 from PIL import Image
 from datetime import datetime
-from barcode_component import barcode_scanner
 
 st.markdown("""
 <style>
@@ -57,13 +56,23 @@ if st.session_state.barcode_screen == "scan":
 
     with tab1:
         if st.session_state.camera_allowed:
-            # リアルタイムバーコードスキャナー
-            jan_detected = barcode_scanner(key="realtime_scanner")
-            if jan_detected:
-                st.session_state.barcode_jan = jan_detected
-                st.session_state.barcode_product = None
-                st.session_state.barcode_screen = "result"
-                st.rerun()
+            st.caption("バーコードにカメラを向けて📷ボタンを押してください")
+            photo = st.camera_input("撮影", label_visibility="collapsed", key="camera_input")
+            if photo:
+                decoded = False
+                try:
+                    from pyzbar import pyzbar
+                    barcodes = pyzbar.decode(Image.open(photo))
+                    if barcodes:
+                        st.session_state.barcode_jan = barcodes[0].data.decode("utf-8")
+                        st.session_state.barcode_product = None
+                        st.session_state.barcode_screen = "result"
+                        decoded = True
+                        st.rerun()
+                except Exception:
+                    pass
+                if not decoded:
+                    st.warning("読み取れませんでした。もう一度試すか「手打ち」タブを使ってください。")
 
             st.markdown("---")
             if st.button("🚫 カメラが使えない・キャンセルしてしまった場合はここ", key="btn_camera_off"):
