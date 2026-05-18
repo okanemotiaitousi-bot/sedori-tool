@@ -3,15 +3,20 @@ from datetime import datetime
 
 st.markdown("""
 <style>
- .block-container { padding: 0 0 3rem !important; max-width: 480px !important; margin: 0 auto !important; }
+ .block-container {
+  padding-top: 0 !important;
+  padding-bottom: 3rem !important;
+  max-width: 480px !important;
+  margin: 0 auto !important;
+ }
 
- /* ヒーローバナー */
+ /* ヒーローバナー：左右パディングを打ち消して端まで伸ばす */
  .hero {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   color: white;
   padding: 2.5rem 1.5rem 2rem;
   text-align: center;
-  margin-bottom: 1.5rem;
+  margin: 0 -1rem 1.5rem;
  }
  .hero .badge {
   background: rgba(255,255,255,0.15);
