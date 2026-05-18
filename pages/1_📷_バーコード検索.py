@@ -80,35 +80,34 @@ with tab2:
 if jan:
     with st.spinner("商品情報を検索中..."):
         try:
-            app_id = st.secrets["RAKUTEN_APP_ID"]
+            app_id = st.secrets["YAHOO_APP_ID"]
             res = requests.get(
-                "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706",
+                "https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch",
                 params={
-                    "applicationId": app_id,
-                    "keyword": jan,
-                    "hits": 3,
-                    "sort": "standard",
+                    "appid": app_id,
+                    "jan_code": jan,
+                    "results": 1,
+                    "sort": "-score",
                 },
                 timeout=5
             )
             data = res.json()
             if "error" in data:
-                st.error(f"APIエラー：{data.get('error_description', data.get('error'))}")
+                st.error(f"APIエラー：{data.get('message', data.get('error'))}")
         except Exception as e:
             st.error(f"通信エラー：{e}")
             data = {}
 
-    items = data.get("Items", [])
+    hits = data.get("hits", [])
 
-    if items:
-        item = items[0].get("Item", {})
-        product_name  = item.get("itemName", "不明")
-        shop_name     = item.get("shopName", "不明")
-        item_price    = item.get("itemPrice", None)
-        item_url      = item.get("itemUrl", "")
-        image_url     = item.get("mediumImageUrls", [{}])
-        image_url     = image_url[0].get("imageUrl", "") if image_url else ""
-        description   = item.get("itemCaption", "")
+    if hits:
+        item = hits[0]
+        product_name = item.get("name", "不明")
+        item_price   = item.get("price", None)
+        item_url     = item.get("url", "")
+        image_url    = item.get("image", {}).get("medium", "")
+        description  = item.get("description", "")
+        brand        = item.get("brand", {}).get("name", "")
 
         st.success("商品が見つかりました！")
         col_img, col_info = st.columns([1, 2])
@@ -119,11 +118,12 @@ if jan:
 
         with col_info:
             st.subheader(product_name)
-            st.write(f"ショップ：{shop_name}")
+            if brand:
+                st.write(f"ブランド：{brand}")
             if item_price:
-                st.write(f"楽天最安値：**{int(item_price):,}円**")
+                st.write(f"Yahoo!最安値：**{int(item_price):,}円**")
             if item_url:
-                st.markdown(f"[楽天で見る]({item_url})")
+                st.markdown(f"[Yahoo!ショッピングで見る]({item_url})")
             if description:
                 st.caption(description[:100] + "...")
     else:
