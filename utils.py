@@ -1,74 +1,125 @@
 """
-ヤフオク落札相場取得ユーティリティ
-Yahoo! Auction Web Service API（無料枠）を使用
+共通ユーティリティ
+- ヤフオク落札相場取得・表示
+- Yahoo!ショッピング最安値取得
 """
+import urllib.parse
 import requests
 import streamlit as st
 
 
-def _fetch_auction_history(query: str, app_id: str, results: int = 20):
-    """ヤフオク落札済みオークションを検索してデータを返す"""
-    res = requests.get(
-        "https://auctions.yahooapis.jp/AuctionWebService/V2/json/searchCompletedAuctions",
-        params={
-            "appid": app_id,
-            "query": query,
-            "results": results,
-            "sort": "end",
-            "order": "d",
-        },
-        timeout=8,
-    )
-    data = res.json()
-
-    if "Error" in data:
+# ── Yahoo!ショッピング最安値取得 ──────────────────────────
+def fetch_yahoo_lowest_price(query: str, app_id: str) -> int | None:
+    """
+    Yahoo!ショッピングAPIで商品名から最安値を取得する。
+    見つからない場合は None を返す。
+    """
+    try:
+        res = requests.get(
+            "https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch",
+            params={
+                "appid": app_id,
+                "query": query,
+                "results": 1,
+                "sort": "+price",
+            },
+            timeout=5,
+        )
+        hits = res.json().get("hits", [])
+        if hits and hits[0].get("price"):
+            return int(hits[0]["price"])
+        return None
+    except Exception:
         return None
 
-    result_data = data.get("ResultSet", {}).get("Result", {})
-    items_raw = result_data.get("Item", [])
-    if not items_raw:
-        return None
-    # 1件の場合はlistではなくdictになるため統一
+
+# ── ヤフオク落札相場取得 ──────────────────────────────────
+def _parse_items(items_raw: list | dict, completed: bool) -> tuple[list, list]:
+    """APIレスポンスのItemリストをパースしてitemsとpricesを返す"""
     if isinstance(items_raw, dict):
         items_raw = [items_raw]
 
-    items = []
-    prices = []
+    items, prices = [], []
     for item in items_raw:
         try:
-            raw_price = item.get("Price") or item.get("CurrentPrice") or "0"
-            price = int(str(raw_price).replace(",", ""))
+            if completed:
+                raw = item.get("Price") or "0"
+            else:
+                raw = item.get("CurrentPrice") or item.get("Price") or "0"
+            price = int(str(raw).replace(",", ""))
             if price <= 0:
                 continue
             end_time = item.get("EndTime", "")
             end_short = end_time[5:10].replace("-", "/") if len(end_time) >= 10 else ""
-            items.append({
-                "title": item.get("Title", ""),
-                "price": price,
-                "end": end_short,
-            })
+            items.append({"title": item.get("Title", ""), "price": price, "end": end_short})
             prices.append(price)
         except Exception:
             continue
+    return items, prices
 
-    if not prices:
+
+def _call_auction_api(endpoint: str, params: dict) -> dict | None:
+    """ヤフオクAPIを呼び出してJSONを返す。エラー時はNone"""
+    try:
+        res = requests.get(endpoint, params=params, timeout=8)
+        data = res.json()
+        if "Error" in data:
+            return None
+        return data
+    except Exception:
         return None
 
+
+def _fetch_auction_history(query: str, app_id: str, results: int = 20) -> dict | None:
+    """
+    ヤフオク落札済み検索 → 失敗時は現在出品中にフォールバックして返す。
+    """
+    base_params = {"appid": app_id, "query": query, "results": results}
+
+    # ① 落札済み検索
+    data = _call_auction_api(
+        "https://auctions.yahooapis.jp/AuctionWebService/V2/json/searchCompletedAuctions",
+        {**base_params, "sort": "end", "order": "d"},
+    )
+    if data:
+        items_raw = data.get("ResultSet", {}).get("Result", {}).get("Item", [])
+        if items_raw:
+            items, prices = _parse_items(items_raw, completed=True)
+            if prices:
+                return _build_result(items, prices, completed=True)
+
+    # ② フォールバック：現在出品中検索
+    data = _call_auction_api(
+        "https://auctions.yahooapis.jp/AuctionWebService/V2/json/search",
+        {**base_params, "sort": "cbids", "order": "d"},
+    )
+    if data:
+        items_raw = data.get("ResultSet", {}).get("Result", {}).get("Item", [])
+        if items_raw:
+            items, prices = _parse_items(items_raw, completed=False)
+            if prices:
+                return _build_result(items, prices, completed=False)
+
+    return None
+
+
+def _build_result(items: list, prices: list, completed: bool) -> dict:
     return {
         "avg": round(sum(prices) / len(prices)),
         "min": min(prices),
         "max": max(prices),
         "count": len(prices),
         "items": items[:5],
+        "completed": completed,
     }
 
 
+# ── Streamlit表示 ─────────────────────────────────────────
 def show_auction_prices(product_name: str, cache_key: str):
     """
     ヤフオク落札相場をStreamlitウィジェットで表示する。
-
-    product_name : APIに渡す検索キーワード（商品名）
-    cache_key    : session_stateのキャッシュ識別子（JAN / 商品名 等）
+    product_name : APIに渡す検索キーワード
+    cache_key    : session_stateのキャッシュ識別子
     """
     field = f"_auction_{cache_key}"
 
@@ -83,18 +134,25 @@ def show_auction_prices(product_name: str, cache_key: str):
 
     data = st.session_state[field]
 
+    # ヤフオクで直接検索するリンク（常に表示）
+    yauction_url = (
+        "https://auctions.yahoo.co.jp/search/search?p="
+        + urllib.parse.quote(product_name)
+        + "&auccat=0&s1=cbids&o1=d"
+    )
+    st.markdown(f"[🔗 ヤフオクで検索する →]({yauction_url})")
+
     if data is None:
-        st.caption("ヤフオクのデータが取得できませんでした")
+        st.caption("APIからのデータ取得に失敗しました。上のリンクから直接確認してください。")
         return
 
-    # ── サマリ ──────────────────────────────
+    label = "落札済み" if data.get("completed", True) else "現在出品中（参考価格）"
     c1, c2, c3 = st.columns(3)
-    c1.metric("平均落札価格", f"¥{data['avg']:,}")
-    c2.metric("最低落札", f"¥{data['min']:,}")
-    c3.metric("最高落札", f"¥{data['max']:,}")
-    st.caption(f"直近 {data['count']} 件の落札データ（ヤフオク）")
+    c1.metric("平均価格", f"¥{data['avg']:,}")
+    c2.metric("最低", f"¥{data['min']:,}")
+    c3.metric("最高", f"¥{data['max']:,}")
+    st.caption(f"直近 {data['count']} 件・{label}（ヤフオク）")
 
-    # ── 最近の落札リスト ──────────────────────
     if data["items"]:
         for item in data["items"]:
             c1, c2 = st.columns([4, 1])

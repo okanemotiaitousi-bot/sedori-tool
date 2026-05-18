@@ -57,8 +57,8 @@ if st.session_state.barcode_screen == "scan":
 
     with tab1:
         if st.session_state.camera_allowed:
-            st.caption("バーコードにカメラを向けて📷ボタンを押してください")
-            photo = st.camera_input("撮影", label_visibility="collapsed", key="camera_input")
+            st.caption("バーコードにカメラを向けてボタンを押してください")
+            photo = st.camera_input("", key="camera_input")
             if photo:
                 decoded = False
                 try:

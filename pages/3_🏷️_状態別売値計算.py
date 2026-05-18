@@ -2,7 +2,7 @@ import hashlib
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
-from utils import show_auction_prices
+from utils import show_auction_prices, fetch_yahoo_lowest_price
 
 
 st.markdown("""
@@ -61,17 +61,37 @@ CONDITION_INFO = {
 }
 
 # ── 入力欄 ─────────────────────────────────────────────
-product_name = st.text_input(
-    "商品名（ヤフオク相場の検索に使います）",
-    placeholder="例：ニンテンドースイッチ　本体　有機EL",
-    key="condition_product_name",
-)
+col_name, col_btn = st.columns([3, 1])
+with col_name:
+    product_name = st.text_input(
+        "商品名",
+        placeholder="例：ニンテンドースイッチ　有機EL",
+        key="condition_product_name",
+    )
+with col_btn:
+    st.markdown("<div style='height:1.8rem'></div>", unsafe_allow_html=True)
+    if st.button("🔍 価格取得", key="fetch_price_btn", use_container_width=True):
+        if product_name.strip():
+            with st.spinner("検索中..."):
+                price = fetch_yahoo_lowest_price(product_name.strip(), st.secrets["YAHOO_APP_ID"])
+            if price:
+                st.session_state.condition_yahoo_price = price
+                st.rerun()
+            else:
+                st.warning("価格を取得できませんでした")
+        else:
+            st.warning("商品名を入力してください")
 
 col1, col2 = st.columns(2)
 with col1:
     cost = st.number_input("仕入れ値（円）", min_value=0, value=0, step=10)
 with col2:
-    yahoo_price = st.number_input("Yahoo!最安値（円）", min_value=0, value=0, step=10)
+    yahoo_price = st.number_input(
+        "Yahoo!最安値（円）",
+        min_value=0,
+        step=10,
+        key="condition_yahoo_price",
+    )
 
 ship_name = st.selectbox("配送方法", [
     "らくらくメルカリ便 60サイズ（750円）",
@@ -96,6 +116,7 @@ for key, default in [
     ("ai_method", None),
     ("last_description", ""),
     ("last_photo_hash", ""),
+    ("condition_yahoo_price", 0),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
