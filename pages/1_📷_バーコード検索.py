@@ -141,6 +141,24 @@ if jan:
     with col2:
         sell = st.number_input("売値（円）", min_value=0, value=2000, step=10)
 
+    # ── おすすめ売値を自動計算して表示 ──────────────────────
+    if cost > 0:
+        with st.container(border=True):
+            st.markdown("**📌 おすすめ売値（メルカリ基準）**")
+            breakeven   = round((cost + 200) / (1 - 0.10))
+            recommended = round((cost + 200) / (1 - 0.10) / (1 - 0.20))
+
+            c1, c2 = st.columns(2)
+            c1.metric("損益分岐点（最低売値）", f"{breakeven:,}円", help="これ以上で売れば赤字にならない最低ライン")
+            c2.metric("利益率20%のおすすめ売値", f"{recommended:,}円", help="しっかり利益を出すための目安")
+
+            if sell < breakeven:
+                st.error("⚠️ 今の売値では赤字になります！")
+            elif sell < recommended:
+                st.warning("△ 利益は出ますが少なめです。もう少し高く売れると良いです。")
+            else:
+                st.success("✅ 十分な利益が見込めます！")
+
     shipping_options = {
         "らくらくメルカリ便 60サイズ": 750,
         "らくらくメルカリ便 80サイズ": 850,
