@@ -117,6 +117,8 @@ for key, default in [
     ("last_description", ""),
     ("last_photo_hash", ""),
     ("condition_yahoo_price", 0),
+    ("generated_listing", ""),
+    ("listing_cache_key", ""),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -154,6 +156,30 @@ def gemini_text_guess(text: str):
         return None
     except Exception:
         return None
+
+
+def gemini_generate_listing(product_name: str, condition: str, sell_price: int, ship: str) -> str:
+    """Geminiでメルカリ出品文を生成する"""
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel("gemini-1.5-flash")
+    prompt = f"""メルカリに出品するための商品説明文を作成してください。
+
+商品名: {product_name}
+状態: {condition}
+販売価格: ¥{sell_price:,}
+配送方法: {ship}
+
+条件：
+- ですます調で自然な文体
+- 状態を具体的に説明（{condition}の場合の一般的な特徴を書く）
+- 購入者が安心できる丁寧な内容
+- 絵文字を適度に使う
+- 400文字以内
+- 最後は「よろしくお願いします🙇」で締める
+
+出品文だけを出力してください。"""
+    response = model.generate_content(prompt)
+    return response.text.strip()
 
 
 def gemini_vision_guess(photo):
@@ -297,6 +323,43 @@ if yahoo_price > 0:
     st.divider()
     st.markdown("**📝 メルカリ出品コメント例**")
     st.code(info["example"], language=None)
+
+    # ── AI出品文自動生成 ───────────────────────────
+    st.divider()
+    st.markdown("**✨ AIで出品文を自動生成**")
+
+    listing_key = f"{product_name}_{condition}_{sell}"
+    if product_name.strip():
+        col_gen, col_regen = st.columns([3, 1])
+        with col_gen:
+            gen_btn = st.button("✨ 出品文を生成する", key="gen_listing_btn",
+                                type="primary", use_container_width=True)
+        with col_regen:
+            regen_btn = st.button("🔄 作り直す", key="regen_listing_btn",
+                                  use_container_width=True)
+
+        if gen_btn or (regen_btn and st.session_state.generated_listing):
+            with st.spinner("🤖 Geminiが出品文を作成中..."):
+                try:
+                    text = gemini_generate_listing(
+                        product_name.strip(), condition, sell, ship_name
+                    )
+                    st.session_state.generated_listing = text
+                    st.session_state.listing_cache_key = listing_key
+                except Exception:
+                    st.error("出品文の生成に失敗しました。もう一度お試しください。")
+
+        if st.session_state.generated_listing:
+            if st.session_state.listing_cache_key != listing_key:
+                st.caption("⚠️ 商品名・状態・価格が変わりました。「作り直す」を押してください。")
+            st.text_area(
+                "↓ コピーしてメルカリに貼り付けてください",
+                value=st.session_state.generated_listing,
+                height=220,
+                key="listing_output",
+            )
+    else:
+        st.caption("商品名を入力すると出品文を生成できます")
 
 else:
     st.info("Yahoo!最安値を入力すると推奨売値と利益が表示されます")
