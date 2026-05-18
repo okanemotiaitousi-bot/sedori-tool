@@ -1,7 +1,6 @@
 import streamlit as st
 import base64
 import requests
-from openai import OpenAI
 
 st.set_page_config(page_title="AI状態判定", page_icon="🤖", layout="centered")
 
@@ -13,10 +12,8 @@ st.markdown("""
     .stNumberInput input { font-size: 1.2rem; height: 3rem; }
     div[data-testid="metric-container"] { background: #f8f9fa; border-radius: 10px; padding: 0.8rem; }
     .condition-box {
-        background: #f0f4ff;
-        border-radius: 12px;
-        padding: 1rem;
-        margin: 0.8rem 0;
+        background: #f0f4ff; border-radius: 12px;
+        padding: 1rem; margin: 0.8rem 0;
         border-left: 4px solid #667eea;
     }
 </style>
@@ -45,17 +42,13 @@ if photo and st.button("🤖 AIで状態を判定する", type="primary"):
     with st.spinner("AIが状態を分析中...（5〜10秒かかります）"):
         try:
             image_data = base64.b64encode(photo.getvalue()).decode("utf-8")
+            api_key    = st.secrets["GEMINI_API_KEY"]
 
-            client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": """この商品の写真を見て以下の形式で回答してください。
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {
+                            "text": """この商品の写真を見て以下の形式で回答してください。
 
 【状態】以下の4つから1つだけ選んでください：
 - 未使用・新品同様
@@ -68,21 +61,23 @@ if photo and st.button("🤖 AIで状態を判定する", type="primary"):
 【メルカリ出品時のコメント案】買い手に伝えるべき状態説明を1〜2文で
 
 必ずこの形式を守って回答してください。"""
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_data}",
-                                    "detail": "low"
-                                }
+                        },
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": image_data
                             }
-                        ]
-                    }
-                ],
-                max_tokens=300
-            )
+                        }
+                    ]
+                }]
+            }
 
-            result = response.choices[0].message.content
+            res = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}",
+                json=payload,
+                timeout=30
+            )
+            result = res.json()["candidates"][0]["content"]["parts"][0]["text"]
             st.session_state["ai_result"] = result
 
         except Exception as e:
@@ -102,10 +97,10 @@ if "ai_result" in st.session_state:
             break
 
     if condition and yahoo_price > 0:
-        rate      = CONDITION_RATE[condition]
-        sell      = round(yahoo_price * rate)
-        ship      = 750
-        profit    = sell - cost - ship - round(sell * 0.10) - 200
+        rate        = CONDITION_RATE[condition]
+        sell        = round(yahoo_price * rate)
+        ship        = 750
+        profit      = sell - cost - ship - round(sell * 0.10) - 200
         profit_rate = round(profit / sell * 100, 1) if sell > 0 else 0
 
         st.divider()
