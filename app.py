@@ -6,6 +6,10 @@ st.set_page_config(
     layout="centered",
 )
 
+# 全ページ共有のsession state初期化
+if "search_history" not in st.session_state:
+    st.session_state.search_history = []
+
 pg = st.navigation([
     st.Page("pages/home.py",                    title="💰 ホーム",         default=True),
     st.Page("pages/1_📷_バーコード検索.py",      title="📷 バーコード検索"),

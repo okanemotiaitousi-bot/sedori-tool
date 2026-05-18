@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+from datetime import datetime
 
 
 st.markdown("""
@@ -116,6 +117,20 @@ if hits:
                         st.warning("🤔 検討あり")
                     else:
                         st.error("❌ やめとこう")
+
+                    # 履歴に保存（同じ商品名は上書き）
+                    if "search_history" not in st.session_state:
+                        st.session_state.search_history = []
+                    history = [h for h in st.session_state.search_history if h.get("name") != name]
+                    history.append({
+                        "name": name,
+                        "jan": "",
+                        "cost": cost_used,
+                        "profit": profit,
+                        "profit_rate": profit_rate,
+                        "time": datetime.now().strftime("%H:%M"),
+                    })
+                    st.session_state.search_history = history[-30:]
 
 elif st.session_state.get("search_results") is not None:
     st.warning("商品が見つかりませんでした。別のキーワードで試してください。")

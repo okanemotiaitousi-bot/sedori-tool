@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from PIL import Image
+from datetime import datetime
 
 st.markdown("""
 <style>
@@ -159,6 +160,9 @@ elif st.session_state.barcode_screen == "result":
     st.session_state.barcode_cost = cost
 
     if cost > 0:
+        # 履歴に保存（同じ商品の重複は更新）
+        if "search_history" not in st.session_state:
+            st.session_state.search_history = []
         if p["price"] and int(p["price"]) < 1500:
             ship_cost, ship_name = 230, "ゆうパケット"
         else:
@@ -171,6 +175,20 @@ elif st.session_state.barcode_screen == "result":
 
         profit = sell - cost - ship_cost - round(sell * 0.10) - 200
         profit_rate = round(profit / sell * 100, 1) if sell > 0 else 0
+
+        # 履歴に追加（同じJANコードは上書き）
+        jan = st.session_state.barcode_jan
+        history = st.session_state.search_history
+        history = [h for h in history if h.get("jan") != jan]
+        history.append({
+            "name": p["name"],
+            "jan": jan,
+            "cost": cost,
+            "profit": profit,
+            "profit_rate": profit_rate,
+            "time": datetime.now().strftime("%H:%M"),
+        })
+        st.session_state.search_history = history[-30:]  # 最大30件
 
         if profit >= 800 and profit_rate >= 20:
             st.markdown(
