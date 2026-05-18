@@ -155,10 +155,20 @@ if jan:
     if ship_cost is None:
         ship_cost = st.number_input("送料を入力（円）", min_value=0, value=600, step=10)
 
-    # ── おすすめ売値を自動計算して表示（送料込み） ──────────
+    # ── メルカリ推定相場とおすすめ売値を表示（送料込み） ────
     if cost > 0:
         with st.container(border=True):
-            st.markdown("**📌 おすすめ売値（メルカリ基準・送料込み）**")
+            st.markdown("**📌 メルカリ推定相場・おすすめ売値**")
+
+            if item_price and int(item_price) > 0:
+                mercari_low  = round(int(item_price) * 0.55)
+                mercari_high = round(int(item_price) * 0.70)
+                st.write(f"メルカリ推定相場：**約{mercari_low:,}〜{mercari_high:,}円**")
+                st.caption("※ Yahoo!価格をもとにした目安です。実際の相場はメルカリでご確認ください。")
+            else:
+                mercari_low  = None
+                mercari_high = None
+
             breakeven   = round((cost + ship_cost + 200) / (1 - 0.10))
             recommended = round((cost + ship_cost + 200) / (1 - 0.10) / (1 - 0.20))
 
