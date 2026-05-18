@@ -66,7 +66,7 @@ if st.session_state.barcode_screen == "scan":
                 st.rerun()
 
             st.markdown("---")
-            if st.button("🚫 カメラが使えない・許可してしまった場合はここ", key="btn_camera_off"):
+            if st.button("🚫 カメラが使えない・キャンセルしてしまった場合はここ", key="btn_camera_off"):
                 st.session_state.camera_allowed = False
                 st.rerun()
         else:

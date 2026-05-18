@@ -124,15 +124,19 @@ async function startCamera() {
       }
     });
     video.srcObject = stream;
+    video.play().catch(() => {});
 
-    // play()を強制待機せず、再生開始イベントでスキャン開始
+    // playingイベントが来たらスキャン開始
     video.addEventListener("playing", () => {
       updateHeight();
-      requestAnimationFrame(scanLoop);
+      if (scanning) requestAnimationFrame(scanLoop);
     }, { once: true });
 
-    // play()はエラーを無視（autoplay属性で自動再生される）
-    video.play().catch(() => {});
+    // playingが来なくても1秒後に強制スタート（iOS Safari対策）
+    setTimeout(() => {
+      updateHeight();
+      if (scanning) requestAnimationFrame(scanLoop);
+    }, 1000);
 
   } catch (err) {
     if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
