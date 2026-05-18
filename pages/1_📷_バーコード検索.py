@@ -80,36 +80,47 @@ with tab2:
 if jan:
     with st.spinner("商品情報を検索中..."):
         try:
+            app_id = st.secrets["RAKUTEN_APP_ID"]
             res = requests.get(
-                f"https://api.upcitemdb.com/prod/trial/lookup?upc={jan}",
+                "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20170706",
+                params={
+                    "applicationId": app_id,
+                    "keyword": jan,
+                    "hits": 1,
+                    "sort": "standard",
+                },
                 timeout=5
             )
             data = res.json()
         except Exception:
             data = {}
 
-    items = data.get("items", [])
+    items = data.get("Items", [])
 
     if items:
-        item = items[0]
-        product_name = item.get("title", "不明")
-        brand        = item.get("brand", "不明")
-        description  = item.get("description", "")
-        images       = item.get("images", [])
-        amazon_price = item.get("lowest_recorded_price", None)
+        item = items[0].get("Item", {})
+        product_name  = item.get("itemName", "不明")
+        shop_name     = item.get("shopName", "不明")
+        item_price    = item.get("itemPrice", None)
+        item_url      = item.get("itemUrl", "")
+        image_url     = item.get("mediumImageUrls", [{}])
+        image_url     = image_url[0].get("imageUrl", "") if image_url else ""
+        description   = item.get("itemCaption", "")
 
         st.success("商品が見つかりました！")
         col_img, col_info = st.columns([1, 2])
 
         with col_img:
-            if images:
-                st.image(images[0], width=150)
+            if image_url:
+                st.image(image_url, width=150)
 
         with col_info:
             st.subheader(product_name)
-            st.write(f"ブランド：{brand}")
-            if amazon_price:
-                st.write(f"参考最安値：**${amazon_price}**")
+            st.write(f"ショップ：{shop_name}")
+            if item_price:
+                st.write(f"楽天最安値：**{int(item_price):,}円**")
+            if item_url:
+                st.markdown(f"[楽天で見る]({item_url})")
             if description:
                 st.caption(description[:100] + "...")
     else:
