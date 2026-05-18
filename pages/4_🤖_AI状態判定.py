@@ -72,13 +72,17 @@ if photo and st.button("🤖 AIで状態を判定する", type="primary"):
                 }]
             }
 
-            res = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}",
+            res     = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}",
                 json=payload,
                 timeout=30
             )
-            result = res.json()["candidates"][0]["content"]["parts"][0]["text"]
-            st.session_state["ai_result"] = result
+            data = res.json()
+            if "candidates" in data:
+                result = data["candidates"][0]["content"]["parts"][0]["text"]
+                st.session_state["ai_result"] = result
+            else:
+                st.error(f"APIエラー：{data.get('error', {}).get('message', str(data))}")
 
         except Exception as e:
             st.error(f"エラーが発生しました：{e}")
