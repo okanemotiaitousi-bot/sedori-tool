@@ -19,12 +19,33 @@ st.divider()
 
 # ── 入力を上に全部まとめる ────────────────────────────────
 keyword = st.text_input("商品名を入力", placeholder="例：ビオレ 洗顔フォーム")
-cost    = st.number_input("仕入れ値（円）", min_value=0, value=0, step=10)
+
+col1, col2 = st.columns(2)
+with col1:
+    cost = st.number_input("仕入れ値（円）", min_value=0, value=0, step=10)
+with col2:
+    sell_input = st.number_input("売値（円）※空白で自動推定", min_value=0, value=0, step=10)
+
+ship_name = st.selectbox("配送方法", [
+    "らくらくメルカリ便 60サイズ（750円）",
+    "ゆうパケット（230円）",
+    "ネコポス（210円）",
+    "らくらくメルカリ便 80サイズ（850円）",
+])
+ship_map = {
+    "らくらくメルカリ便 60サイズ（750円）": 750,
+    "ゆうパケット（230円）": 230,
+    "ネコポス（210円）": 210,
+    "らくらくメルカリ便 80サイズ（850円）": 850,
+}
+ship_cost = ship_map[ship_name]
 
 if st.button("🔍 検索する", type="primary"):
-    st.session_state["search_keyword"] = keyword
-    st.session_state["search_cost"]    = cost
-    st.session_state["search_results"] = None
+    st.session_state["search_keyword"]  = keyword
+    st.session_state["search_cost"]     = cost
+    st.session_state["search_sell"]     = sell_input
+    st.session_state["search_ship"]     = ship_cost
+    st.session_state["search_results"]  = None
 
 # ── 検索実行 ──────────────────────────────────────────────
 if st.session_state.get("search_keyword") and st.session_state.get("search_results") is None:
@@ -46,12 +67,14 @@ if st.session_state.get("search_keyword") and st.session_state.get("search_resul
             st.session_state["search_results"] = []
 
 # ── 結果表示 ──────────────────────────────────────────────
-hits      = st.session_state.get("search_results", [])
-cost_used = st.session_state.get("search_cost", cost)
+hits       = st.session_state.get("search_results", [])
+cost_used  = st.session_state.get("search_cost", 0)
+sell_used  = st.session_state.get("search_sell", 0)
+ship_used  = st.session_state.get("search_ship", 750)
 
 if hits:
     st.divider()
-    st.markdown(f"**{len(hits)}件の結果**　仕入れ値 ¥{cost_used:,} で計算")
+    st.markdown(f"**{len(hits)}件の結果**")
 
     for item in hits:
         name      = item.get("name", "不明")
@@ -75,22 +98,25 @@ if hits:
                 if url:
                     st.markdown(f"[Yahoo!で見る ↗]({url})")
 
-            if price and cost_used > 0:
-                ship   = 750
-                sell   = round(int(price) * 0.62)
-                profit = sell - cost_used - ship - round(sell * 0.10) - 200
-                profit_rate = round(profit / sell * 100, 1) if sell > 0 else 0
+            if cost_used > 0:
+                sell = sell_used if sell_used > 0 else (round(int(price) * 0.62) if price else 0)
+                if sell > 0:
+                    profit      = sell - cost_used - ship_used - round(sell * 0.10) - 200
+                    profit_rate = round(profit / sell * 100, 1)
 
-                c1, c2 = st.columns(2)
-                c1.metric("推定利益", f"¥{profit:,}")
-                c2.metric("利益率",   f"{profit_rate}%")
+                    sell_label = f"¥{sell:,}（自動推定）" if sell_used == 0 else f"¥{sell:,}"
+                    st.caption(f"売値：{sell_label}")
 
-                if profit >= 800 and profit_rate >= 20:
-                    st.success("✅ 買い！")
-                elif profit >= 200 and profit_rate >= 8:
-                    st.warning("🤔 検討あり")
-                else:
-                    st.error("❌ やめとこう")
+                    c1, c2 = st.columns(2)
+                    c1.metric("利益", f"¥{profit:,}")
+                    c2.metric("利益率", f"{profit_rate}%")
+
+                    if profit >= 800 and profit_rate >= 20:
+                        st.success("✅ 買い！")
+                    elif profit >= 200 and profit_rate >= 8:
+                        st.warning("🤔 検討あり")
+                    else:
+                        st.error("❌ やめとこう")
 
 elif st.session_state.get("search_results") is not None:
     st.warning("商品が見つかりませんでした。別のキーワードで試してください。")
