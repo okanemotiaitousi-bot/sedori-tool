@@ -4,144 +4,107 @@ import numpy as np
 from PIL import Image
 from profit_calc import judge
 
-st.set_page_config(page_title="バーコード検索", page_icon="📷", layout="centered")
+st.set_page_config(page_title="せどり目利きツール", page_icon="📷", layout="centered")
 
 st.markdown("""
 <style>
-    .block-container { padding: 1rem 1rem 3rem; }
+    .block-container { padding: 1rem 1rem 3rem; max-width: 480px; margin: auto; }
 
-    .product-card {
-        background: linear-gradient(135deg, #f5f7fa, #e8ecf1);
+    .verdict-buy {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        color: white;
         border-radius: 16px;
-        padding: 1.2rem;
+        padding: 1.5rem;
+        text-align: center;
+        font-size: 2rem;
+        font-weight: bold;
         margin: 1rem 0;
     }
-    .product-name {
-        font-size: 1rem;
+    .verdict-maybe {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        color: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        text-align: center;
+        font-size: 2rem;
         font-weight: bold;
-        margin-bottom: 0.3rem;
+        margin: 1rem 0;
     }
-    .price-big {
-        font-size: 1.5rem;
+    .verdict-bad {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        text-align: center;
+        font-size: 2rem;
         font-weight: bold;
-        color: #e74c3c;
+        margin: 1rem 0;
     }
-
-    .result-card {
+    .product-box {
+        background: #f8f9fa;
         border-radius: 12px;
         padding: 1rem;
-        margin: 0.5rem 0;
-        border-left: 4px solid;
+        margin: 0.8rem 0;
+        display: flex;
+        gap: 0.8rem;
+        align-items: center;
     }
-    .result-good  { background: #f0fff4; border-color: #2ecc71; }
-    .result-warn  { background: #fffbf0; border-color: #f39c12; }
-    .result-bad   { background: #fff5f5; border-color: #e74c3c; }
-
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        height: 3.5rem;
-        font-size: 1.1rem;
-        font-weight: bold;
-        width: 100%;
-    }
-    .stNumberInput input { font-size: 1.2rem; height: 3rem; }
+    .price-red { color: #e74c3c; font-size: 1.3rem; font-weight: bold; }
     div[data-testid="metric-container"] {
-        background: white;
+        background: #f8f9fa;
         border-radius: 10px;
         padding: 0.8rem;
-        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
+    .stNumberInput input { font-size: 1.4rem; height: 3.5rem; font-weight: bold; }
+    h1 { font-size: 1.3rem !important; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📷 バーコード検索")
-st.divider()
-
-PLATFORMS = {
-    "メルカリ":      {"fee_rate": 0.10, "transfer_fee": 200},
-    "ラクマ":        {"fee_rate": 0.06, "transfer_fee": 0},
-    "PayPayフリマ":  {"fee_rate": 0.05, "transfer_fee": 0},
-    "ヤフオク（通常）": {"fee_rate": 0.10, "transfer_fee": 0},
-    "ヤフオク（プレミアム会員）": {"fee_rate": 0.088, "transfer_fee": 0},
-}
-
-def calc_by_platform(cost, sell, shipping, platform_key):
-    p = PLATFORMS[platform_key]
-    fee = sell * p["fee_rate"]
-    transfer = p["transfer_fee"]
-    profit = sell - cost - shipping - fee - transfer
-    profit_rate = (profit / sell * 100) if sell > 0 else 0
-    return round(profit), round(profit_rate, 1), round(fee)
-
-def decode_barcode_from_image(pil_image):
-    try:
-        from pyzbar import pyzbar
-        barcodes = pyzbar.decode(pil_image)
-        for barcode in barcodes:
-            return barcode.data.decode("utf-8")
-    except Exception:
-        pass
-    try:
-        import cv2
-        img_array = np.array(pil_image.convert("RGB"))
-        img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
-        detector = cv2.barcode_BarcodeDetector()
-        retval, decoded_info, _, _ = detector.detectAndDecode(img_bgr)
-        if retval:
-            for info in decoded_info:
-                if info:
-                    return info
-    except Exception:
-        pass
-    return None
+st.title("📷 せどり目利きツール")
 
 # ── バーコード入力 ────────────────────────────────────────
-tab1, tab2 = st.tabs(["📷 カメラで撮影", "⌨️ 手打ちで入力"])
+tab1, tab2 = st.tabs(["📷 カメラ", "⌨️ 手打ち"])
 jan = ""
 
 with tab1:
-    photo = st.camera_input("バーコードを撮影")
+    photo = st.camera_input("バーコードを撮影", label_visibility="collapsed")
     if photo:
-        image = Image.open(photo)
-        detected = decode_barcode_from_image(image)
-        if detected:
-            st.success(f"✅ 読み取り成功！　{detected}")
-            jan = detected
-        else:
-            st.warning("読み取れませんでした。もう一度撮影するか手打ちで入力してください。")
+        from pyzbar import pyzbar as _pyzbar
+        try:
+            barcodes = _pyzbar.decode(Image.open(photo))
+            if barcodes:
+                jan = barcodes[0].data.decode("utf-8")
+                st.success(f"✅ {jan}")
+            else:
+                st.warning("読み取れませんでした。もう一度試すか手打ちで入力してください。")
+        except Exception:
+            st.warning("読み取れませんでした。手打ちで入力してください。")
 
 with tab2:
-    jan_input = st.text_input("JANコードを入力", placeholder="例：4901777374300")
+    jan_input = st.text_input("JANコード", placeholder="例：4901777374300", label_visibility="collapsed")
     if jan_input:
         jan = jan_input
 
 # ── 商品検索 ──────────────────────────────────────────────
 item_price = None
+product_name = ""
 
 if jan:
     with st.spinner("🔍 検索中..."):
         try:
-            app_id = st.secrets["YAHOO_APP_ID"]
             res = requests.get(
                 "https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch",
-                params={"appid": app_id, "jan_code": jan, "results": 1, "sort": "-score"},
+                params={"appid": st.secrets["YAHOO_APP_ID"], "jan_code": jan, "results": 1},
                 timeout=5
             )
             data = res.json()
-            if "error" in data:
-                st.error(f"APIエラー：{data.get('message', data.get('error'))}")
-        except Exception as e:
-            st.error(f"通信エラー：{e}")
+        except Exception:
             data = {}
 
     hits = data.get("hits", [])
-
     if hits:
         item         = hits[0]
-        product_name = item.get("name", "不明")
+        product_name = item.get("name", "")
         item_price   = item.get("price", None)
         item_url     = item.get("url", "")
         image_url    = item.get("image", {}).get("medium", "")
@@ -152,101 +115,103 @@ if jan:
             if image_url:
                 st.image(image_url, use_container_width=True)
         with col_info:
-            st.markdown(f'<div class="product-name">{product_name}</div>', unsafe_allow_html=True)
+            st.markdown(f"**{product_name[:40]}**")
             if brand:
                 st.caption(f"🏷 {brand}")
             if item_price:
-                st.markdown(f'<div class="price-big">¥{int(item_price):,}</div>', unsafe_allow_html=True)
+                st.markdown(f'<span class="price-red">¥{int(item_price):,}</span>', unsafe_allow_html=True)
                 st.caption("Yahoo!最安値")
             if item_url:
                 st.markdown(f"[Yahoo!で見る ↗]({item_url})")
     else:
-        st.warning("商品が見つかりませんでした。手動で入力してください。")
+        st.warning("商品が見つかりませんでした")
 
     st.divider()
 
-    # ── 仕入れ値・売値 ────────────────────────────────────
-    st.subheader("💴 利益計算")
+    # ── 仕入れ値（メインの入力） ──────────────────────────
+    st.markdown("### 💴 仕入れ値を入力")
+    cost = st.number_input("仕入れ値（円）", min_value=0, value=500, step=10, label_visibility="collapsed")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        cost = st.number_input("仕入れ値（円）", min_value=0, value=500, step=10)
-    with col2:
-        sell = st.number_input("売値（円）", min_value=0, value=2000, step=10)
+    # 送料は自動設定（商品価格から推定）
+    if item_price and int(item_price) < 1000:
+        auto_ship = 210   # ネコポス
+        ship_label = "ネコポス"
+    elif item_price and int(item_price) < 3000:
+        auto_ship = 750   # 60サイズ
+        ship_label = "らくらく60"
+    else:
+        auto_ship = 850   # 80サイズ
+        ship_label = "らくらく80"
 
-    ship_name = st.selectbox("配送方法", [
-        "らくらくメルカリ便 60サイズ（750円）",
-        "らくらくメルカリ便 80サイズ（850円）",
-        "らくらくメルカリ便 100サイズ（1,050円）",
-        "ゆうパケット（230円）",
-        "ネコポス（210円）",
-        "手入力する",
-    ])
-    ship_map = {
-        "らくらくメルカリ便 60サイズ（750円）": 750,
-        "らくらくメルカリ便 80サイズ（850円）": 850,
-        "らくらくメルカリ便 100サイズ（1,050円）": 1050,
-        "ゆうパケット（230円）": 230,
-        "ネコポス（210円）": 210,
-        "手入力する": None,
-    }
-    ship_cost = ship_map[ship_name]
-    if ship_cost is None:
-        ship_cost = st.number_input("送料（円）", min_value=0, value=600, step=10)
-
-    # ── 推定相場・おすすめ売値 ────────────────────────────
+    # ── 即時判定（メイン） ────────────────────────────────
     if cost > 0:
-        breakeven   = round((cost + ship_cost + 200) / (1 - 0.10))
-        recommended = round((cost + ship_cost + 200) / (1 - 0.10) / (1 - 0.20))
+        breakeven   = round((cost + auto_ship + 200) / (1 - 0.10))
+        recommended = round((cost + auto_ship + 200) / (1 - 0.10) / (1 - 0.20))
 
-        with st.container(border=True):
-            st.markdown("**📌 推定相場・おすすめ売値**")
+        if item_price:
+            sell = round(int(item_price) * 0.62)
+        else:
+            sell = recommended
+
+        profit      = sell - cost - auto_ship - round(sell * 0.10) - 200
+        profit_rate = round((profit / sell * 100), 1) if sell > 0 else 0
+
+        if profit >= 800 and profit_rate >= 20:
+            st.markdown(f'<div class="verdict-buy">✅ 買い！<br><small>推定利益 ¥{profit:,}</small></div>', unsafe_allow_html=True)
+        elif profit >= 300 and profit_rate >= 10:
+            st.markdown(f'<div class="verdict-maybe">🤔 検討あり<br><small>推定利益 ¥{profit:,}</small></div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="verdict-bad">❌ やめとこう<br><small>推定利益 ¥{profit:,}</small></div>', unsafe_allow_html=True)
+
+        st.caption(f"※ 売値：¥{sell:,}（推定）　送料：{ship_label}（¥{auto_ship}）で計算")
+
+        # ── 詳細（折りたたみ） ────────────────────────────
+        with st.expander("📊 詳細・売値を変更する"):
+            sell2 = st.number_input("売値（円）", min_value=0, value=sell, step=10)
+            ship_name = st.selectbox("配送方法", [
+                f"{ship_label}（自動・¥{auto_ship}）",
+                "らくらくメルカリ便 60サイズ（750円）",
+                "らくらくメルカリ便 80サイズ（850円）",
+                "らくらくメルカリ便 100サイズ（1,050円）",
+                "ゆうパケット（230円）",
+                "ネコポス（210円）",
+            ])
+            ship_map = {
+                f"{ship_label}（自動・¥{auto_ship}）": auto_ship,
+                "らくらくメルカリ便 60サイズ（750円）": 750,
+                "らくらくメルカリ便 80サイズ（850円）": 850,
+                "らくらくメルカリ便 100サイズ（1,050円）": 1050,
+                "ゆうパケット（230円）": 230,
+                "ネコポス（210円）": 210,
+            }
+            ship2 = ship_map[ship_name]
 
             if item_price and int(item_price) > 0:
                 mercari_low  = round(int(item_price) * 0.55)
                 mercari_high = round(int(item_price) * 0.70)
-                st.markdown(f"**メルカリ推定相場：約{mercari_low:,}〜{mercari_high:,}円**")
-                st.caption("※ Yahoo!価格をもとにした目安です")
+                st.info(f"📌 メルカリ推定相場：**¥{mercari_low:,}〜¥{mercari_high:,}**\n\n※ Yahoo!価格をもとにした目安です")
 
             c1, c2 = st.columns(2)
-            c1.metric("最低売値", f"{breakeven:,}円", help="これ未満だと赤字")
-            c2.metric("おすすめ売値", f"{recommended:,}円", help="利益率20%の目安")
+            c1.metric("最低売値", f"¥{breakeven:,}")
+            c2.metric("おすすめ売値", f"¥{recommended:,}")
 
-            if sell < breakeven:
-                st.markdown('<div class="result-card result-bad">⚠️ <b>赤字になります！</b></div>', unsafe_allow_html=True)
-            elif sell < recommended:
-                st.markdown('<div class="result-card result-warn">△ <b>利益は出ますが少なめです</b></div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="result-card result-good">✅ <b>十分な利益が見込めます！</b></div>', unsafe_allow_html=True)
-
-    # ── プラットフォーム比較 ──────────────────────────────
-    st.divider()
-    st.subheader("🏪 プラットフォーム比較")
-
-    selected = st.multiselect(
-        "出品先を選んでください",
-        list(PLATFORMS.keys()),
-        default=["メルカリ", "ラクマ", "PayPayフリマ"]
-    )
-
-    if selected:
-        best_profit   = -999999
-        best_platform = ""
-
-        for platform in selected:
-            profit, profit_rate, fee = calc_by_platform(cost, sell, ship_cost, platform)
-            verdict = judge(profit, profit_rate)
-            if profit > best_profit:
-                best_profit   = profit
-                best_platform = platform
-
-            css_class = "result-good" if profit >= 500 and profit_rate >= 10 else ("result-warn" if profit >= 0 else "result-bad")
-            with st.container(border=True):
-                c1, c2, c3 = st.columns(3)
-                c1.metric(platform, f"{profit:,}円", f"{profit_rate}%")
-                c2.metric("手数料", f"{fee:,}円")
-                c3.write("")
-                c3.write(verdict)
-
-        if best_platform:
-            st.success(f"✅ 最も利益が出るのは **{best_platform}**（{best_profit:,}円）")
+            st.markdown("**プラットフォーム別利益**")
+            platforms = {
+                "メルカリ":     {"fee_rate": 0.10, "transfer_fee": 200},
+                "ラクマ":       {"fee_rate": 0.06, "transfer_fee": 0},
+                "PayPayフリマ": {"fee_rate": 0.05, "transfer_fee": 0},
+                "ヤフオク":     {"fee_rate": 0.10, "transfer_fee": 0},
+            }
+            best_p = -999999
+            best_n = ""
+            for name, p in platforms.items():
+                pr = sell2 - cost - ship2 - round(sell2 * p["fee_rate"]) - p["transfer_fee"]
+                pr_rate = round(pr / sell2 * 100, 1) if sell2 > 0 else 0
+                if pr > best_p:
+                    best_p = pr
+                    best_n = name
+                c1, c2 = st.columns([2, 1])
+                c1.write(f"**{name}**")
+                c2.write(f"¥{pr:,}（{pr_rate}%）")
+            if best_n:
+                st.success(f"✅ 最も利益：**{best_n}**（¥{best_p:,}）")
