@@ -1,5 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
+from utils import show_auction_prices
 
 
 st.markdown("""
@@ -50,6 +51,12 @@ CONDITION_INFO = {
         "example": "【状態】目立つ傷・汚れがあります。現状渡しとなります。",
     },
 }
+
+product_name = st.text_input(
+    "商品名（ヤフオク相場の検索に使います）",
+    placeholder="例：ニンテンドースイッチ　本体　有機EL",
+    key="condition_product_name",
+)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -191,6 +198,22 @@ if yahoo_price > 0:
         st.warning("🤔 検討あり")
     else:
         st.error("❌ やめとこう")
+
+    # ── ヤフオク落札相場 ────────────────────────────
+    search_query = product_name.strip() or description_input.strip()
+    if search_query:
+        with st.expander("📦 ヤフオク落札相場を見る"):
+            cache_key = search_query[:40]
+            show_auction_prices(search_query, cache_key)
+            if yahoo_price > 0 and st.session_state.get(f"_auction_{cache_key}"):
+                auction_avg = st.session_state[f"_auction_{cache_key}"]["avg"]
+                diff = auction_avg - yahoo_price
+                if diff > 0:
+                    st.info(f"📊 ヤフオク平均はYahoo!より **¥{diff:,} 高め** → 相場は強い")
+                elif diff < 0:
+                    st.warning(f"📊 ヤフオク平均はYahoo!より **¥{abs(diff):,} 安め** → 相場は弱い")
+                else:
+                    st.caption("📊 ヤフオク平均とYahoo!価格がほぼ同じです")
 
     st.divider()
     st.markdown("**📝 メルカリ出品コメント例**")
