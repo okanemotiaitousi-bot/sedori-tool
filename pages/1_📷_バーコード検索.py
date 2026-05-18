@@ -127,7 +127,7 @@ elif st.session_state.screen == "result":
 
     # 仕入れ値入力
     st.markdown("### 💴 仕入れ値")
-    cost = st.number_input("仕入れ値", min_value=0, value=500, step=10, label_visibility="collapsed")
+    cost = st.number_input("仕入れ値", min_value=0, value=0, step=10, label_visibility="collapsed")
 
     if cost > 0:
         # 送料自動設定

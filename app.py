@@ -50,7 +50,7 @@ st.markdown("""
 <div class="title-area">
     <div class="icon">💰</div>
     <h1>せどり目利きツール</h1>
-    <p>店頭でバーコードをスキャンするだけで<br>仕入れ判断・利益計算・相場確認がその場でできる<br>せどり専用ツールです</p>
+    <p>店頭でバーコードをスキャンするだけで<br>仕入れ判断・利益計算・相場確認が<br>その場でできるせどり専用ツールです</p>
 </div>
 <div class="divider"></div>
 """, unsafe_allow_html=True)
@@ -60,9 +60,9 @@ st.subheader("⚡ かんたん利益計算")
 
 col1, col2 = st.columns(2)
 with col1:
-    cost = st.number_input("仕入れ値（円）", min_value=0, value=500, step=10)
+    cost = st.number_input("仕入れ値（円）", min_value=0, value=0, step=10)
 with col2:
-    sell = st.number_input("売値（円）", min_value=0, value=2000, step=10)
+    sell = st.number_input("売値（円）", min_value=0, value=0, step=10)
 
 shipping = st.selectbox("配送方法", [
     "らくらくメルカリ便 60サイズ（750円）",
