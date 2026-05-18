@@ -48,25 +48,56 @@ for key, default in [
 if st.session_state.barcode_screen == "scan":
     st.title("📷 バーコードをスキャン")
 
+    # カメラ許可のトグル
+    if "camera_allowed" not in st.session_state:
+        st.session_state.camera_allowed = True
+
     tab1, tab2 = st.tabs(["📷 カメラ", "⌨️ 手打ち"])
 
     with tab1:
-        photo = st.camera_input("撮影", label_visibility="collapsed", key="camera_input")
-        if photo:
-            decoded = False
-            try:
-                from pyzbar import pyzbar
-                barcodes = pyzbar.decode(Image.open(photo))
-                if barcodes:
-                    st.session_state.barcode_jan = barcodes[0].data.decode("utf-8")
-                    st.session_state.barcode_product = None
-                    st.session_state.barcode_screen = "result"
-                    decoded = True
-                    st.rerun()
-            except Exception:
-                pass
-            if not decoded:
-                st.warning("読み取れませんでした。「手打ち」タブからJANコードを入力してください。")
+        if st.session_state.camera_allowed:
+            st.info("📸 バーコードにカメラを向けて撮影してください", icon="ℹ️")
+            photo = st.camera_input("撮影", label_visibility="collapsed", key="camera_input")
+            if photo:
+                decoded = False
+                try:
+                    from pyzbar import pyzbar
+                    barcodes = pyzbar.decode(Image.open(photo))
+                    if barcodes:
+                        st.session_state.barcode_jan = barcodes[0].data.decode("utf-8")
+                        st.session_state.barcode_product = None
+                        st.session_state.barcode_screen = "result"
+                        decoded = True
+                        st.rerun()
+                except Exception:
+                    pass
+                if not decoded:
+                    st.warning("読み取れませんでした。もう一度試すか「手打ち」タブを使ってください。")
+
+            st.markdown("---")
+            if st.button("🚫 カメラが使えない・許可してしまった場合はここ", key="btn_camera_off"):
+                st.session_state.camera_allowed = False
+                st.rerun()
+        else:
+            st.markdown("""
+            ### 📷 カメラを使う方法
+            ブラウザがカメラをブロックしている状態です。
+            以下の手順で許可を変更してください。
+
+            **Chromeの場合（スマホ）**
+            1. ブラウザのアドレスバー左の 🔒 をタップ
+            2. 「権限」または「カメラ」をタップ
+            3. 「許可」に変更
+            4. ページを再読み込み（↺）
+
+            **Safariの場合（iPhone）**
+            1. 設定アプリ → Safari → カメラ
+            2. 「許可」または「確認」に変更
+            3. ページを再読み込み
+            """)
+            if st.button("✅ カメラを許可した → カメラ画面に戻る", type="primary", key="btn_camera_on"):
+                st.session_state.camera_allowed = True
+                st.rerun()
 
     with tab2:
         jan_input = st.text_input(
