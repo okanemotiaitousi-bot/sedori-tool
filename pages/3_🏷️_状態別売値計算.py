@@ -185,7 +185,7 @@ tab_photo, tab_text = st.tabs(["📷 写真で判定（おすすめ）", "📝 �
 with tab_photo:
     st.caption("商品をカメラで撮影するだけで、AIが状態を自動判定します")
 
-    photo = st.camera_input("撮影", label_visibility="collapsed", key="condition_camera")
+    photo = st.camera_input("商品を撮影", label_visibility="collapsed", key="condition_camera")
 
     if photo is not None:
         photo_hash = hashlib.md5(photo.getvalue()).hexdigest()
