@@ -1,8 +1,6 @@
 import streamlit as st
-import base64
-import requests
 
-st.set_page_config(page_title="AI状態判定", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="状態別売値計算", page_icon="🏷️", layout="centered")
 
 st.markdown("""
 <style>
@@ -11,119 +9,97 @@ st.markdown("""
     .stButton > button { border-radius: 12px; height: 3rem; font-size: 1rem; font-weight: bold; width: 100%; }
     .stNumberInput input { font-size: 1.2rem; height: 3rem; }
     div[data-testid="metric-container"] { background: #f8f9fa; border-radius: 10px; padding: 0.8rem; }
-    .condition-box {
+    .condition-tip {
         background: #f0f4ff; border-radius: 12px;
         padding: 1rem; margin: 0.8rem 0;
         border-left: 4px solid #667eea;
+        font-size: 0.9rem;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🤖 AI状態判定")
-st.caption("商品の写真を撮るだけでAIが状態を判定して売値を提案します")
+st.title("🏷️ 状態別売値計算")
+st.caption("商品の状態を選ぶだけで適正売値と利益を計算します")
 st.divider()
 
-CONDITION_RATE = {
-    "未使用・新品同様": 0.80,
-    "良い":             0.65,
-    "可":               0.45,
-    "不可":             0.25,
+CONDITION_INFO = {
+    "未使用・新品同様": {
+        "rate": 0.80,
+        "tip": "開封・使用の形跡がない。タグ付き・シュリンク未開封など。",
+        "example": "【状態】未使用品です。購入後一度も使用しておりません。"
+    },
+    "良い": {
+        "rate": 0.65,
+        "tip": "数回使用。目立つ傷・汚れなし。丁寧に使用・保管されていた状態。",
+        "example": "【状態】数回使用しましたが、目立った傷や汚れはございません。"
+    },
+    "可": {
+        "rate": 0.45,
+        "tip": "使用感あり。小傷・汚れ・日焼けなどがある状態。",
+        "example": "【状態】使用感があります。小傷・汚れがございますが使用に問題ありません。"
+    },
+    "不可": {
+        "rate": 0.25,
+        "tip": "目立つ傷・破損・動作不良など。ジャンク品扱い。",
+        "example": "【状態】目立つ傷・汚れがあります。現状渡しとなります。"
+    },
 }
 
 col1, col2 = st.columns(2)
 with col1:
     cost = st.number_input("仕入れ値（円）", min_value=0, value=0, step=10)
 with col2:
-    yahoo_price = st.number_input("Yahoo!最安値（円）※わかれば", min_value=0, value=0, step=10)
+    yahoo_price = st.number_input("Yahoo!最安値（円）", min_value=0, value=0, step=10)
 
-photo = st.camera_input("商品の写真を撮影してください")
+ship_name = st.selectbox("配送方法", [
+    "らくらくメルカリ便 60サイズ（750円）",
+    "ゆうパケット（230円）",
+    "ネコポス（210円）",
+    "らくらくメルカリ便 80サイズ（850円）",
+])
+ship_map = {
+    "らくらくメルカリ便 60サイズ（750円）": 750,
+    "ゆうパケット（230円）": 230,
+    "ネコポス（210円）": 210,
+    "らくらくメルカリ便 80サイズ（850円）": 850,
+}
+ship_cost = ship_map[ship_name]
 
-if photo and st.button("🤖 AIで状態を判定する", type="primary"):
-    with st.spinner("AIが状態を分析中...（5〜10秒かかります）"):
-        try:
-            image_data = base64.b64encode(photo.getvalue()).decode("utf-8")
-            api_key    = st.secrets["GEMINI_API_KEY"]
+st.divider()
+st.markdown("### 📋 商品の状態を選んでください")
 
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {
-                            "text": """この商品の写真を見て以下の形式で回答してください。
+condition = st.radio(
+    "状態",
+    list(CONDITION_INFO.keys()),
+    label_visibility="collapsed"
+)
 
-【状態】以下の4つから1つだけ選んでください：
-- 未使用・新品同様
-- 良い
-- 可
-- 不可
+info = CONDITION_INFO[condition]
 
-【状態の理由】外観・傷・汚れ・劣化などを50文字以内で
+st.markdown(f'<div class="condition-tip">📌 <b>{condition}</b>とは：{info["tip"]}</div>', unsafe_allow_html=True)
 
-【メルカリ出品時のコメント案】買い手に伝えるべき状態説明を1〜2文で
+if yahoo_price > 0:
+    sell        = round(yahoo_price * info["rate"])
+    profit      = sell - cost - ship_cost - round(sell * 0.10) - 200
+    profit_rate = round(profit / sell * 100, 1) if sell > 0 else 0
 
-必ずこの形式を守って回答してください。"""
-                        },
-                        {
-                            "inline_data": {
-                                "mime_type": "image/jpeg",
-                                "data": image_data
-                            }
-                        }
-                    ]
-                }]
-            }
+    st.divider()
 
-            res     = requests.post(
-                f"https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent?key={api_key}",
-                json=payload,
-                timeout=30
-            )
-            data = res.json()
-            if "candidates" in data:
-                result = data["candidates"][0]["content"]["parts"][0]["text"]
-                st.session_state["ai_result"] = result
-            else:
-                st.error(f"APIエラー：{data.get('error', {}).get('message', str(data))}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("推奨売値", f"¥{sell:,}")
+    c2.metric("利益", f"¥{profit:,}")
+    c3.metric("利益率", f"{profit_rate}%")
 
-        except Exception as e:
-            st.error(f"エラーが発生しました：{e}")
+    if profit >= 800 and profit_rate >= 20:
+        st.success("✅ 買い！")
+    elif profit >= 200 and profit_rate >= 8:
+        st.warning("🤔 検討あり")
+    else:
+        st.error("❌ やめとこう")
 
-if "ai_result" in st.session_state:
-    result = st.session_state["ai_result"]
+    st.divider()
+    st.markdown("**📝 メルカリ出品コメント例**")
+    st.code(info["example"], language=None)
 
-    st.markdown('<div class="condition-box">', unsafe_allow_html=True)
-    st.markdown(result)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    condition = None
-    for c in CONDITION_RATE:
-        if c in result:
-            condition = c
-            break
-
-    if condition and yahoo_price > 0:
-        rate        = CONDITION_RATE[condition]
-        sell        = round(yahoo_price * rate)
-        ship        = 750
-        profit      = sell - cost - ship - round(sell * 0.10) - 200
-        profit_rate = round(profit / sell * 100, 1) if sell > 0 else 0
-
-        st.divider()
-        st.markdown(f"**📌 状態：{condition}（Yahoo!価格の{int(rate*100)}%）**")
-
-        c1, c2 = st.columns(2)
-        c1.metric("推奨売値", f"¥{sell:,}")
-        c2.metric("推定利益", f"¥{profit:,}（{profit_rate}%）")
-
-        if profit >= 800 and profit_rate >= 20:
-            st.success("✅ 買い！")
-        elif profit >= 200 and profit_rate >= 8:
-            st.warning("🤔 検討あり")
-        else:
-            st.error("❌ やめとこう")
-
-    elif condition and yahoo_price == 0:
-        st.info(f"状態：**{condition}**\n\nYahoo!最安値を入力すると推奨売値も計算できます。")
-
-    if st.button("🔄 別の商品を判定する"):
-        del st.session_state["ai_result"]
-        st.rerun()
+else:
+    st.info("Yahoo!最安値を入力すると推奨売値と利益が表示されます")
