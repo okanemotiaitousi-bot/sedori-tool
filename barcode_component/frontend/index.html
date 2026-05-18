@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #111;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow: hidden;
+}
+
+#wrapper {
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+
+video {
+  width: 100%;
+  display: block;
+  max-height: 260px;
+  object-fit: cover;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* スキャン枠：四隅だけ緑のコーナー */
+.scan-frame {
+  width: 72%;
+  height: 90px;
+  position: relative;
+}
+.corner {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-color: #2ecc71;
+  border-style: solid;
+}
+.corner.tl { top:0; left:0;  border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+.corner.tr { top:0; right:0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+.corner.bl { bottom:0; left:0;  border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+.corner.br { bottom:0; right:0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+
+/* スキャンライン */
+.scan-line {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #2ecc71 50%, transparent 100%);
+  box-shadow: 0 0 8px #2ecc71;
+  animation: sweep 1.6s ease-in-out infinite;
+}
+@keyframes sweep {
+  0%   { top: 0;   opacity: 1; }
+  85%  { top: 100%; opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* ステータスバー */
+#status-bar {
+  background: rgba(0,0,0,0.88);
+  text-align: center;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: #ccc;
+  letter-spacing: 0.02em;
+}
+#status-bar.success {
+  background: #143d20;
+  color: #2ecc71;
+  font-weight: 700;
+  font-size: 15px;
+}
+#status-bar.error {
+  background: #3d1414;
+  color: #e74c3c;
+}
+#status-bar.warn {
+  background: #3d3014;
+  color: #f39c12;
+}
+
+/* エラー時の代替表示 */
+#error-box {
+  display: none;
+  padding: 24px 16px;
+  text-align: center;
+  color: #ccc;
+}
+#error-box p { margin: 4px 0; font-size: 13px; }
+#error-box .big { font-size: 28px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div id="wrapper">
+  <video id="video" autoplay playsinline muted></video>
+  <div id="overlay">
+    <div class="scan-frame">
+      <div class="corner tl"></div>
+      <div class="corner tr"></div>
+      <div class="corner bl"></div>
+      <div class="corner br"></div>
+      <div class="scan-line" id="scan-line"></div>
+    </div>
+  </div>
+</div>
+<div id="status-bar">📷 バーコードを枠内に合わせてください</div>
+<div id="error-box">
+  <div class="big">📷</div>
+  <p>カメラにアクセスできませんでした</p>
+  <p style="color:#888;margin-top:6px">「手打ち」タブからJANコードを入力してください</p>
+</div>
+
+<!-- Streamlit コンポーネントライブラリ -->
+<script src="https://unpkg.com/streamlit-component-lib@2.0.0/dist/index.js"></script>
+
+<script>
+const video     = document.getElementById('video');
+const statusBar = document.getElementById('status-bar');
+const scanLine  = document.getElementById('scan-line');
+const errorBox  = document.getElementById('error-box');
+const wrapper   = document.getElementById('wrapper');
+
+let scanning = true;
+let detector  = null;
+
+function setHeight() {
+  Streamlit.setFrameHeight(document.body.scrollHeight);
+}
+
+/* BarcodeDetector が使えるか確認 */
+function isBarcodeDetectorSupported() {
+  return 'BarcodeDetector' in window;
+}
+
+/* カメラ起動 */
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280 },
+        height: { ideal: 720 },
+      }
+    });
+    video.srcObject = stream;
+    await video.play();
+
+    if (!isBarcodeDetectorSupported()) {
+      statusBar.className = 'warn';
+      statusBar.textContent = '⚠️ このブラウザは非対応です。「手打ち」タブを使ってください。';
+      setHeight();
+      return;
+    }
+
+    detector = new BarcodeDetector({
+      formats: ['ean_13', 'ean_8', 'code_128', 'upc_a', 'upc_e']
+    });
+
+    requestAnimationFrame(scanLoop);
+
+  } catch (err) {
+    wrapper.style.display  = 'none';
+    statusBar.style.display = 'none';
+    errorBox.style.display  = 'block';
+    setHeight();
+  }
+}
+
+/* スキャンループ */
+async function scanLoop() {
+  if (!scanning) return;
+
+  if (video.readyState >= 2) {
+    try {
+      const codes = await detector.detect(video);
+      if (codes.length > 0) {
+        const raw = codes[0].rawValue;
+        /* JANコード（8桁 or 13桁の数字）のみ受け付ける */
+        if (/^\d{8}$|^\d{13}$/.test(raw)) {
+          scanning = false;
+
+          /* スキャンラインを止めて成功表示 */
+          scanLine.style.animation = 'none';
+          scanLine.style.background = '#2ecc71';
+          scanLine.style.top = '50%';
+          statusBar.className = 'success';
+          statusBar.textContent = '✅ 読み取り完了！  ' + raw;
+          setHeight();
+
+          /* 少し間を置いてからStreamlitに値を返す */
+          setTimeout(() => {
+            Streamlit.setComponentValue(raw);
+          }, 350);
+          return;
+        }
+      }
+    } catch (e) { /* フレーム処理エラーは無視 */ }
+  }
+
+  requestAnimationFrame(scanLoop);
+}
+
+/* 初期化 */
+Streamlit.setComponentReady();
+setHeight();
+startCamera();
+</script>
+</body>
+</html>
