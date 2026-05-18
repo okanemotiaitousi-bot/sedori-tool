@@ -1,7 +1,6 @@
 import streamlit as st
 import google.generativeai as genai
 
-st.set_page_config(page_title="状態別売値計算", page_icon="🏷️", layout="centered")
 
 st.markdown("""
 <style>

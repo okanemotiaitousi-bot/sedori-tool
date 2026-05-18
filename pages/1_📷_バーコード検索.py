@@ -2,8 +2,6 @@ import streamlit as st
 import requests
 from PIL import Image
 
-st.set_page_config(page_title="せどり目利きツール", page_icon="📷", layout="centered")
-
 st.markdown("""
 <style>
  .block-container { padding: 1rem 1rem 2rem; max-width: 460px; margin: auto; }

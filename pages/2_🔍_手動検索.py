@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 
-st.set_page_config(page_title="手動検索", page_icon="🔍", layout="centered")
 
 st.markdown("""
 <style>

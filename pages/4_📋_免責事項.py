@@ -1,6 +1,5 @@
 import streamlit as st
 
-st.set_page_config(page_title="免責事項", page_icon="📋", layout="centered")
 
 st.markdown("""
 <style>
