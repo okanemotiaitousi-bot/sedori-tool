@@ -42,6 +42,8 @@ def generate_listing_text(product_name: str, condition: str, sell_price: int, sh
 def fetch_yahoo_lowest_price(query: str, app_id: str) -> int | None:
     """
     Yahoo!ショッピングAPIで商品名から最安値を取得する。
+    関連度順で上位10件を取得し、その中の最安値を返すことで
+    関係ないアクセサリ等の激安品を除外する。
     見つからない場合は None を返す。
     """
     try:
@@ -50,15 +52,14 @@ def fetch_yahoo_lowest_price(query: str, app_id: str) -> int | None:
             params={
                 "appid": app_id,
                 "query": query,
-                "results": 1,
-                "sort": "+price",
+                "results": 10,
+                "sort": "-score",
             },
             timeout=5,
         )
         hits = res.json().get("hits", [])
-        if hits and hits[0].get("price"):
-            return int(hits[0]["price"])
-        return None
+        prices = [int(h["price"]) for h in hits if h.get("price") and int(h["price"]) > 0]
+        return min(prices) if prices else None
     except Exception:
         return None
 
