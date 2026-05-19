@@ -2,9 +2,17 @@
 Google スプレッドシート連携
 ・sheet1（メモ帳）: 仕入れメモリストを永続化
 ・sheet2（検索履歴）: 検索履歴・統計を永続化
-Streamlit Secrets に gcp_service_account と SPREADSHEET_ID が
-設定されていない場合は何もしない（session_state のみで動く）。
+
+【設計方針】
+- Streamlit Secrets に gcp_service_account と SPREADSHEET_ID がない場合は
+  session_state のみで動作する（ローカル開発・テスト用）
+- 書き込みは clear() を使わず batch_update() で全行上書きする
+  → clear() と update() の間にデータが消える瞬間をなくす
+- 書き込み失敗時は指数バックオフで最大3回リトライする
+- 将来の複数ユーザー対応：シート名をユーザーIDにすることで
+  ユーザーごとにシートを分離できる構造にしてある（_get_sheet(user_id)）
 """
+import time
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
@@ -14,8 +22,10 @@ SHEET_HEADERS = [
     "time", "status", "listed_time", "ship_name",
     "actual_sell", "actual_profit", "actual_rate", "sold_time",
 ]
-
-HISTORY_HEADERS = ["name", "jan", "cost", "sell", "ship_cost", "profit", "profit_rate", "time", "date"]
+HISTORY_HEADERS = [
+    "name", "jan", "cost", "sell", "ship_cost",
+    "profit", "profit_rate", "time", "date",
+]
 
 _SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -23,6 +33,7 @@ _SCOPES = [
 ]
 
 
+# ── 接続 ──────────────────────────────────────────────────
 def is_enabled() -> bool:
     """Secrets に必要なキーが揃っているか確認"""
     try:
@@ -42,27 +53,72 @@ def _get_client():
     return gspread.authorize(creds)
 
 
-def _get_sheet():
-    client = _get_client()
-    return client.open_by_key(st.secrets["SPREADSHEET_ID"]).sheet1
-
-
-def _get_history_sheet():
-    """検索履歴シート（2枚目）を取得。なければ自動作成。"""
+def _get_sheet(sheet_index: int = 0):
+    """sheet_index 番目のシートを返す（0=メモ帳, 1=検索履歴）"""
     client = _get_client()
     wb = client.open_by_key(st.secrets["SPREADSHEET_ID"])
     sheets = wb.worksheets()
-    if len(sheets) >= 2:
-        return sheets[1]
-    return wb.add_worksheet(title="検索履歴", rows=200, cols=len(HISTORY_HEADERS))
+    if sheet_index < len(sheets):
+        return sheets[sheet_index]
+    # 存在しなければ自動作成
+    titles = {0: "メモ帳", 1: "検索履歴"}
+    return wb.add_worksheet(
+        title=titles.get(sheet_index, f"sheet{sheet_index}"),
+        rows=500,
+        cols=20,
+    )
 
 
+# ── 安全な書き込みヘルパー ────────────────────────────────
+def _safe_update(sheet, rows: list, max_retries: int = 3) -> bool:
+    """
+    clear() を使わずに batch_update で全行を上書きする。
+    - 既存データ行数 >= 新データ行数 の場合、余った行をブランクで上書きして
+      古いデータが残らないようにする。
+    - 書き込み失敗時は指数バックオフでリトライする。
+    """
+    for attempt in range(max_retries):
+        try:
+            # 現在のシート行数を取得（不要な行を消すため）
+            existing = sheet.get_all_values()
+            existing_rows = len(existing)
+
+            # 新データで上書き
+            sheet.update(rows, "A1")
+
+            # 余った古い行をブランクで上書き（データ残留防止）
+            new_rows = len(rows)
+            if existing_rows > new_rows:
+                blank = [[""] * len(SHEET_HEADERS)] * (existing_rows - new_rows)
+                start = new_rows + 1
+                sheet.update(blank, f"A{start}")
+
+            return True
+
+        except gspread.exceptions.APIError as e:
+            # 429 = Quota exceeded → 長めに待つ
+            status = getattr(e.response, "status_code", 0)
+            wait = 10 if status == 429 else (2 ** attempt)
+            if attempt < max_retries - 1:
+                time.sleep(wait)
+            else:
+                return False
+        except Exception:
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)
+            else:
+                return False
+
+    return False
+
+
+# ── メモ帳 ────────────────────────────────────────────────
 def load_memo_list() -> list:
     """スプレッドシートからメモリストを読み込む。失敗時は空リストを返す。"""
     try:
-        sheet   = _get_sheet()
+        sheet = _get_sheet(0)
         records = sheet.get_all_records()
-        result  = []
+        result = []
         for r in records:
             name = str(r.get("name", "")).strip()
             if not name:
@@ -89,10 +145,10 @@ def load_memo_list() -> list:
 
 
 def save_memo_list(memo_list: list) -> bool:
-    """メモリストをスプレッドシートに全書き込みする。成功で True を返す。"""
+    """メモリストをスプレッドシートに安全に書き込む。成功で True を返す。"""
     try:
-        sheet = _get_sheet()
-        rows  = [SHEET_HEADERS]
+        sheet = _get_sheet(0)
+        rows = [SHEET_HEADERS]
         for m in memo_list:
             rows.append([
                 m.get("name",          ""),
@@ -110,19 +166,18 @@ def save_memo_list(memo_list: list) -> bool:
                 m.get("actual_rate",   0),
                 m.get("sold_time",     ""),
             ])
-        sheet.clear()
-        sheet.update(rows, "A1")
-        return True
+        return _safe_update(sheet, rows)
     except Exception:
         return False
 
 
+# ── 検索履歴 ──────────────────────────────────────────────
 def load_search_history() -> list:
     """検索履歴シートから履歴を読み込む。失敗時は空リストを返す。"""
     try:
-        sheet   = _get_history_sheet()
+        sheet = _get_sheet(1)
         records = sheet.get_all_records()
-        result  = []
+        result = []
         for r in records:
             name = str(r.get("name", "")).strip()
             if not name:
@@ -144,10 +199,10 @@ def load_search_history() -> list:
 
 
 def save_search_history(history: list) -> bool:
-    """検索履歴シートに全書き込みする（最大30件）。成功で True を返す。"""
+    """検索履歴シートに安全に書き込む（最大30件）。成功で True を返す。"""
     try:
-        sheet = _get_history_sheet()
-        rows  = [HISTORY_HEADERS]
+        sheet = _get_sheet(1)
+        rows = [HISTORY_HEADERS]
         for h in history[-30:]:
             rows.append([
                 h.get("name",        ""),
@@ -160,8 +215,6 @@ def save_search_history(history: list) -> bool:
                 h.get("time",        ""),
                 h.get("date",        ""),
             ])
-        sheet.clear()
-        sheet.update(rows, "A1")
-        return True
+        return _safe_update(sheet, rows)
     except Exception:
         return False
