@@ -139,14 +139,14 @@ else:
     # 検索件数
     with st.expander(f"🔍　検索件数　**{len(_h)} 件**　▼ タップで一覧"):
         st.caption("商品をタップすると手動検索で再検索できます")
-        for item in reversed(_h[-10:]):
+        for hi, item in enumerate(reversed(_h[-10:])):
             p    = item["profit"]
             icon = "✅" if p >= 500 else ("🤔" if p >= 0 else "❌")
             ps   = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
             hc1, hc2 = st.columns([3, 1])
             hc1.markdown(f"**{item['name'][:22]}**  \n{icon} {ps}（{item['profit_rate']}%）　{item['time']}")
             with hc2:
-                if st.button("🔍", key=f"re_{item['name'][:15]}_{item['time']}",
+                if st.button("🔍", key=f"re_search_{hi}",
                              use_container_width=True, help="この商品を再検索"):
                     st.session_state["_prefill_kw"]    = item["name"]
                     st.session_state["search_keyword"] = item["name"]
