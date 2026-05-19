@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime
 from utils import generate_listing_text
+import sheets as gs
 
 CONDS = ["未使用・新品同様", "良い", "可", "不可"]
 SHIP_OPTIONS = [
@@ -56,13 +57,32 @@ st.title("📝 仕入れメモ帳")
 st.caption("仕入れ候補 → 出品中 → 売却済み の流れで管理できます")
 st.divider()
 
-# ── 初期化・マイグレーション ────────────────────────────
+# ── 初期化・シートからのロード ───────────────────────────
 if "memo_list" not in st.session_state:
     st.session_state.memo_list = []
 
+# セッション内でまだシートを読み込んでいない場合だけロードする
+if "sheets_loaded" not in st.session_state:
+    if gs.is_enabled():
+        with st.spinner("📂 保存データを読み込み中..."):
+            loaded = gs.load_memo_list()
+        # このセッション中に追加された未保存アイテムをマージ
+        loaded_keys = {(m["name"], m["jan"]) for m in loaded}
+        new_items   = [m for m in st.session_state.memo_list
+                       if (m["name"], m["jan"]) not in loaded_keys]
+        st.session_state.memo_list = loaded + new_items
+    st.session_state.sheets_loaded = True
+
+# 旧データのマイグレーション
 for item in st.session_state.memo_list:
     if "status" not in item:
         item["status"] = "候補"
+
+
+def _save():
+    """変更後に呼ぶ。Sheets が有効なら保存する。"""
+    if gs.is_enabled():
+        gs.save_memo_list(st.session_state.memo_list)
 
 memo_list = st.session_state.memo_list
 candidates = [m for m in memo_list if m.get("status") == "候補"]
@@ -106,6 +126,7 @@ with tab1:
         st.divider()
         if st.button("🗑️ 候補をすべて削除", key="clear_candidates"):
             st.session_state.memo_list = [m for m in memo_list if m.get("status") != "候補"]
+            _save()
             st.rerun()
 
         delete_idx = None
@@ -137,6 +158,7 @@ with tab1:
                 if st.button("🏪 出品する", key=f"to_list_{real_idx}", use_container_width=True, type="primary"):
                     st.session_state.memo_list[real_idx]["status"]      = "出品中"
                     st.session_state.memo_list[real_idx]["listed_time"] = datetime.now().strftime("%m/%d %H:%M")
+                    _save()
                     st.rerun()
             with col_b:
                 pass
@@ -168,6 +190,7 @@ with tab1:
 
         if delete_idx is not None:
             st.session_state.memo_list.pop(delete_idx)
+            _save()
             st.rerun()
 
 
@@ -273,14 +296,17 @@ with tab2:
                 "sold_time":     datetime.now().strftime("%m/%d %H:%M"),
             })
             st.session_state[f"_show_sell_{sold_idx}"] = False
+            _save()
             st.rerun()
 
         if back_idx is not None:
             st.session_state.memo_list[back_idx]["status"] = "候補"
+            _save()
             st.rerun()
 
         if del_idx is not None:
             st.session_state.memo_list.pop(del_idx)
+            _save()
             st.rerun()
 
 
@@ -313,6 +339,7 @@ with tab3:
 
         if st.button("🗑️ 売却済みをすべて削除", key="clear_sold"):
             st.session_state.memo_list = [m for m in memo_list if m.get("status") != "売却済み"]
+            _save()
             st.rerun()
 
         del_idx = None
@@ -348,4 +375,5 @@ with tab3:
 
         if del_idx is not None:
             st.session_state.memo_list.pop(del_idx)
+            _save()
             st.rerun()

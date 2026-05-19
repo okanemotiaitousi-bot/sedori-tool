@@ -3,3 +3,5 @@ requests
 pyzbar
 Pillow
 google-generativeai
+gspread
+google-auth
