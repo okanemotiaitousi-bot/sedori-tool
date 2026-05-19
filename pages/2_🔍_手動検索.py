@@ -95,6 +95,8 @@ if st.session_state.get("search_keyword") and st.session_state.get("search_resul
                             "name": name,
                             "jan": "",
                             "cost": cost_at_search,
+                            "sell": sell,
+                            "ship_cost": ship_at_search,
                             "profit": profit,
                             "profit_rate": profit_rate,
                             "time": datetime.now().strftime("%H:%M"),

@@ -15,7 +15,7 @@ SHEET_HEADERS = [
     "actual_sell", "actual_profit", "actual_rate", "sold_time",
 ]
 
-HISTORY_HEADERS = ["name", "jan", "cost", "profit", "profit_rate", "time", "date"]
+HISTORY_HEADERS = ["name", "jan", "cost", "sell", "ship_cost", "profit", "profit_rate", "time", "date"]
 
 _SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -131,6 +131,8 @@ def load_search_history() -> list:
                 "name":        name,
                 "jan":         str(r.get("jan",         "")),
                 "cost":        int(r.get("cost",         0) or 0),
+                "sell":        int(r.get("sell",         0) or 0),
+                "ship_cost":   int(r.get("ship_cost",    750) or 750),
                 "profit":      int(r.get("profit",       0) or 0),
                 "profit_rate": float(r.get("profit_rate", 0) or 0),
                 "time":        str(r.get("time",         "")),
@@ -151,6 +153,8 @@ def save_search_history(history: list) -> bool:
                 h.get("name",        ""),
                 h.get("jan",         ""),
                 h.get("cost",        0),
+                h.get("sell",        0),
+                h.get("ship_cost",   750),
                 h.get("profit",      0),
                 h.get("profit_rate", 0),
                 h.get("time",        ""),

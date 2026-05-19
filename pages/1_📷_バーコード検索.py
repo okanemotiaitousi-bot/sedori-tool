@@ -218,6 +218,8 @@ elif st.session_state.barcode_screen == "result":
             "name": p["name"],
             "jan": jan,
             "cost": cost,
+            "sell": sell,
+            "ship_cost": ship_cost,
             "profit": profit,
             "profit_rate": profit_rate,
             "time": datetime.now().strftime("%H:%M"),

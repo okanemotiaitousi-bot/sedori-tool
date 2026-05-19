@@ -254,10 +254,14 @@ if len(history) >= 1:
 history = st.session_state.get("search_history", [])
 if history:
     st.markdown('<div class="history-area">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">🕐 最近の検索</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">🕐 最近の検索（タップで詳細）</div>', unsafe_allow_html=True)
 
-    for item in reversed(history[-10:]):
-        p = item["profit"]
+    for i, item in enumerate(reversed(history[-10:])):
+        p    = item["profit"]
+        cost = item.get("cost", 0)
+        sell = item.get("sell", 0)
+        rate = item.get("profit_rate", 0)
+
         if p >= 500:
             icon = "✅"
             color_class = "profit-pos"
@@ -269,15 +273,32 @@ if history:
             color_class = "profit-neg"
 
         profit_str = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
-        st.markdown(
-            f'<div class="history-item">'
-            f'<span>{icon}</span>'
-            f'<span class="hname">{item["name"][:20]}</span>'
-            f'<span class="hprofit {color_class}">{profit_str}</span>'
-            f'<span class="htime">{item["time"]}</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+
+        with st.expander(
+            f"{icon} {item['name'][:18]}　{profit_str}（{rate}%）　{item['time']}",
+            expanded=False,
+        ):
+            if sell > 0:
+                ship_cost = item.get("ship_cost", 750)
+                breakeven    = round((cost + ship_cost + 200) / (1 - 0.10))
+                recommended  = round((cost + ship_cost + 200) / (1 - 0.10) / (1 - 0.20))
+                ec1, ec2 = st.columns(2)
+                ec1.metric("損益分岐点", f"¥{breakeven:,}")
+                ec2.metric("推奨売値（利益20%）", f"¥{recommended:,}")
+                st.markdown("**プラットフォーム別利益**")
+                for pname, fee_rate, transfer in [
+                    ("メルカリ",     0.10,  200),
+                    ("ラクマ",       0.066,   0),
+                    ("PayPayフリマ", 0.05,    0),
+                    ("ヤフオク",     0.088,   0),
+                ]:
+                    pr      = sell - cost - ship_cost - round(sell * fee_rate) - transfer
+                    pr_rate = round(pr / sell * 100, 1)
+                    pc1, pc2 = st.columns([2, 1])
+                    pc1.write(f"**{pname}**")
+                    pc2.write(f"¥{pr:,}（{pr_rate}%）")
+            else:
+                st.caption("売値情報がないため詳細を表示できません")
 
     if st.button("🗑️ 履歴を消す", key="clear_history"):
         st.session_state.search_history = []
