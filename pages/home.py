@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+import sheets as gs
 
 st.markdown("""
 <style>
@@ -107,6 +108,14 @@ st.markdown("""
  <p>店頭でその場で仕入れ判断。<br>バーコードをスキャンするだけで利益が分かる。</p>
 </div>
 """, unsafe_allow_html=True)
+
+# ── 検索履歴のロード（セッション初回のみ）────────────────
+if "search_history" not in st.session_state:
+    if gs.is_enabled():
+        loaded_h = gs.load_search_history()
+        st.session_state.search_history = loaded_h
+    else:
+        st.session_state.search_history = []
 
 # ── 今日の統計 ──────────────────────────────────────────
 _h = st.session_state.get("search_history", [])

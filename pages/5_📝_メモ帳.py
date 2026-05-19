@@ -303,13 +303,24 @@ with tab2:
                 with col_del:
                     confirm_key = f"_confirm_del_list_{real_idx}"
                     if st.session_state.get(confirm_key):
-                        if st.button("確認", key=f"del_list_ok_{real_idx}",
+                        if st.button("✅", key=f"del_list_ok_{real_idx}",
                                      use_container_width=True, type="primary"):
                             del_idx = real_idx
                     else:
                         if st.button("🗑️", key=f"del_list_{real_idx}", use_container_width=True):
                             st.session_state[confirm_key] = True
                             st.rerun()
+
+            confirm_key = f"_confirm_del_list_{real_idx}"
+            if st.session_state.get(confirm_key):
+                ca, cb = st.columns(2)
+                with ca:
+                    st.caption("⚠️ 本当に削除しますか？")
+                with cb:
+                    if st.button("✕ キャンセル", key=f"cancel_del_list_{real_idx}",
+                                 use_container_width=True):
+                        st.session_state[confirm_key] = False
+                        st.rerun()
 
         if sold_idx is not None and sold_price is not None:
             sc            = sold_ship or 750
@@ -410,11 +421,11 @@ with tab3:
             if st.session_state.get(confirm_key):
                 col_ok, col_cancel = st.columns(2)
                 with col_ok:
-                    if st.button("本当に削除", key=f"del_sold_ok_{real_idx}",
+                    if st.button("🗑️ 本当に削除", key=f"del_sold_ok_{real_idx}",
                                  type="primary", use_container_width=True):
                         del_idx = real_idx
                 with col_cancel:
-                    if st.button("キャンセル", key=f"del_sold_cancel_{real_idx}",
+                    if st.button("✕ キャンセル", key=f"del_sold_cancel_{real_idx}",
                                  use_container_width=True):
                         st.session_state[confirm_key] = False
                         st.rerun()

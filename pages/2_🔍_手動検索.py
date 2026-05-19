@@ -4,6 +4,13 @@ from datetime import datetime
 from utils import show_auction_prices
 import sheets as gs
 
+# ── 検索履歴のロード（セッション初回のみ）────────────────
+if "search_history" not in st.session_state:
+    if gs.is_enabled():
+        st.session_state.search_history = gs.load_search_history()
+    else:
+        st.session_state.search_history = []
+
 
 st.markdown("""
 <style>
@@ -70,7 +77,9 @@ if st.session_state.get("search_keyword") and st.session_state.get("search_resul
             cost_at_search = st.session_state.get("search_cost", 0)
             ship_at_search = st.session_state.get("search_ship", 750)
             sell_at_search = st.session_state.get("search_sell", 0)
-            if cost_at_search > 0 and "search_history" in st.session_state:
+            if cost_at_search > 0:
+                if "search_history" not in st.session_state:
+                    st.session_state.search_history = []
                 new_history = list(st.session_state.search_history)
                 for item in hits_data:
                     name  = item.get("name", "不明")
@@ -89,8 +98,11 @@ if st.session_state.get("search_keyword") and st.session_state.get("search_resul
                             "profit": profit,
                             "profit_rate": profit_rate,
                             "time": datetime.now().strftime("%H:%M"),
+                            "date": datetime.now().strftime("%Y-%m-%d"),
                         })
                 st.session_state.search_history = new_history[-30:]
+                if gs.is_enabled():
+                    gs.save_search_history(st.session_state.search_history)
 
         except Exception as e:
             st.error(f"通信エラー：{e}")

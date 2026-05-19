@@ -221,8 +221,11 @@ elif st.session_state.barcode_screen == "result":
             "profit": profit,
             "profit_rate": profit_rate,
             "time": datetime.now().strftime("%H:%M"),
+            "date": datetime.now().strftime("%Y-%m-%d"),
         })
         st.session_state.search_history = history[-30:]
+        if gs.is_enabled():
+            gs.save_search_history(st.session_state.search_history)
 
     if cost == 0:
         st.info("仕入れ値を入力すると判定が更新されます（0円のまま計算することも可能です）")
