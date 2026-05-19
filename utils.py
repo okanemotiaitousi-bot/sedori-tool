@@ -103,11 +103,10 @@ def _call_auction_api(endpoint: str, params: dict) -> dict | None:
 
 def _fetch_auction_history(query: str, app_id: str, results: int = 20) -> dict | None:
     """
-    ヤフオク落札済み検索 → 失敗時は現在出品中にフォールバックして返す。
+    ヤフオク落札済み検索（API権限がない場合はNoneを返す）
     """
     base_params = {"appid": app_id, "query": query, "results": results}
 
-    # ① 落札済み検索
     data = _call_auction_api(
         "https://auctions.yahooapis.jp/AuctionWebService/V2/json/searchCompletedAuctions",
         {**base_params, "sort": "end", "order": "d"},
@@ -119,7 +118,6 @@ def _fetch_auction_history(query: str, app_id: str, results: int = 20) -> dict |
             if prices:
                 return _build_result(items, prices, completed=True)
 
-    # ② フォールバック：現在出品中検索
     data = _call_auction_api(
         "https://auctions.yahooapis.jp/AuctionWebService/V2/json/search",
         {**base_params, "sort": "cbids", "order": "d"},
@@ -152,10 +150,23 @@ def show_auction_prices(product_name: str, cache_key: str):
     product_name : APIに渡す検索キーワード
     cache_key    : session_stateのキャッシュ識別子
     """
+    q = urllib.parse.quote(product_name)
+
+    # 落札済み検索URL（mode=2 で落札済みタブが開く）
+    completed_url = (
+        f"https://auctions.yahoo.co.jp/search/search?p={q}"
+        "&auccat=0&s1=end&o1=d&mode=2"
+    )
+    # 現在出品中URL
+    active_url = (
+        f"https://auctions.yahoo.co.jp/search/search?p={q}"
+        "&auccat=0&s1=cbids&o1=d"
+    )
+
     field = f"_auction_{cache_key}"
 
     if field not in st.session_state:
-        with st.spinner("📦 ヤフオク相場を取得中..."):
+        with st.spinner("ヤフオク相場を確認中..."):
             try:
                 st.session_state[field] = _fetch_auction_history(
                     product_name, st.secrets["YAHOO_APP_ID"]
@@ -165,27 +176,40 @@ def show_auction_prices(product_name: str, cache_key: str):
 
     data = st.session_state[field]
 
-    # ヤフオクで直接検索するリンク（常に表示）
-    yauction_url = (
-        "https://auctions.yahoo.co.jp/search/search?p="
-        + urllib.parse.quote(product_name)
-        + "&auccat=0&s1=cbids&o1=d"
-    )
-    st.markdown(f"[🔗 ヤフオクで検索する →]({yauction_url})")
-
-    if data is None:
-        st.caption("APIからのデータ取得に失敗しました。上のリンクから直接確認してください。")
-        return
-
-    label = "落札済み" if data.get("completed", True) else "現在出品中（参考価格）"
-    c1, c2, c3 = st.columns(3)
-    c1.metric("平均価格", f"¥{data['avg']:,}")
-    c2.metric("最低", f"¥{data['min']:,}")
-    c3.metric("最高", f"¥{data['max']:,}")
-    st.caption(f"直近 {data['count']} 件・{label}（ヤフオク）")
-
-    if data["items"]:
-        for item in data["items"]:
-            c1, c2 = st.columns([4, 1])
-            c1.caption(item["title"][:35])
-            c2.caption(f"¥{item['price']:,}　{item['end']}")
+    if data is not None:
+        label = "落札済み" if data.get("completed", True) else "現在出品中（参考）"
+        c1, c2, c3 = st.columns(3)
+        c1.metric("平均", f"¥{data['avg']:,}")
+        c2.metric("最低", f"¥{data['min']:,}")
+        c3.metric("最高", f"¥{data['max']:,}")
+        st.caption(f"直近 {data['count']} 件・{label}（ヤフオク）")
+        if data["items"]:
+            for item in data["items"]:
+                c1, c2 = st.columns([4, 1])
+                c1.caption(item["title"][:35])
+                c2.caption(f"¥{item['price']:,}　{item['end']}")
+        st.markdown(f"[🔗 ヤフオクで検索する →]({active_url})")
+    else:
+        st.markdown(
+            f"""
+<div style="background:#f8f9fa;border-radius:12px;padding:1rem 1.2rem;margin:0.3rem 0">
+  <div style="font-size:0.85rem;color:#555;margin-bottom:0.6rem">
+    📦 <strong>ヤフオク落札相場</strong>　下のリンクから確認できます
+  </div>
+  <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
+    <a href="{completed_url}" target="_blank"
+       style="background:#ff6b35;color:white;padding:0.4rem 0.9rem;border-radius:8px;
+              text-decoration:none;font-size:0.85rem;font-weight:bold">
+      🏷️ 落札済みを見る
+    </a>
+    <a href="{active_url}" target="_blank"
+       style="background:#fff;color:#ff6b35;padding:0.4rem 0.9rem;border-radius:8px;
+              text-decoration:none;font-size:0.85rem;font-weight:bold;
+              border:1.5px solid #ff6b35">
+      📋 出品中を見る
+    </a>
+  </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )

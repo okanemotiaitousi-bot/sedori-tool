@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>せどり目利きツール｜月額プラン</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+      background: #0f0f1a;
+      color: #fff;
+      min-height: 100vh;
+    }
+
+    /* ── ヒーロー ── */
+    .hero {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      padding: 3rem 1.5rem 2.5rem;
+      text-align: center;
+    }
+    .badge {
+      background: rgba(255,255,255,0.12);
+      border-radius: 20px;
+      padding: 0.3rem 1rem;
+      font-size: 0.78rem;
+      display: inline-block;
+      margin-bottom: 1rem;
+      letter-spacing: 0.06em;
+    }
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 900;
+      line-height: 1.25;
+      margin-bottom: 0.8rem;
+      letter-spacing: -0.02em;
+    }
+    .hero h1 span { color: #f9ca24; }
+    .hero p {
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.75);
+      line-height: 1.7;
+      max-width: 360px;
+      margin: 0 auto 1.5rem;
+    }
+    .hero-img {
+      background: rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 1rem;
+      max-width: 340px;
+      margin: 0 auto 1.5rem;
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.7);
+    }
+    .hero-img .screen-mock {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .mock-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 0.5rem 0.8rem;
+      font-size: 0.82rem;
+    }
+    .mock-row .buy  { color: #2ecc71; font-weight: bold; }
+    .mock-row .bad  { color: #e74c3c; font-weight: bold; }
+    .mock-row .mid  { color: #f39c12; font-weight: bold; }
+
+    /* ── CTA ── */
+    .cta-wrap {
+      text-align: center;
+      padding: 1rem 1.5rem 0;
+    }
+    .btn-primary {
+      display: block;
+      background: linear-gradient(135deg, #f9ca24, #f0932b);
+      color: #1a1a2e;
+      font-weight: 900;
+      font-size: 1.1rem;
+      padding: 1rem 2rem;
+      border-radius: 16px;
+      text-decoration: none;
+      max-width: 340px;
+      margin: 0 auto 0.6rem;
+      box-shadow: 0 4px 20px rgba(249,202,36,0.35);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-secondary {
+      display: block;
+      background: transparent;
+      color: rgba(255,255,255,0.65);
+      font-size: 0.88rem;
+      padding: 0.6rem;
+      text-decoration: none;
+      max-width: 340px;
+      margin: 0 auto;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+    }
+    .sub-note {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.4);
+      margin-top: 0.7rem;
+      text-align: center;
+    }
+
+    /* ── 機能リスト ── */
+    .section {
+      padding: 2rem 1.5rem;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-bottom: 1.2rem;
+      text-align: center;
+    }
+    .feature-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+    }
+    .feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.7rem;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 0.9rem 1rem;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .feature-list .icon { font-size: 1.3rem; flex-shrink: 0; }
+    .feature-list strong { display: block; margin-bottom: 0.1rem; }
+    .feature-list span { color: rgba(255,255,255,0.6); font-size: 0.82rem; }
+
+    /* ── 料金 ── */
+    .price-card {
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
+      border: 1.5px solid rgba(249,202,36,0.4);
+      border-radius: 20px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      max-width: 320px;
+      margin: 0 auto 1.5rem;
+    }
+    .plan-name {
+      font-size: 0.85rem;
+      color: #f9ca24;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.5rem;
+    }
+    .price-amount {
+      font-size: 2.8rem;
+      font-weight: 900;
+      line-height: 1;
+      margin-bottom: 0.2rem;
+    }
+    .price-amount small {
+      font-size: 1rem;
+      font-weight: 400;
+      color: rgba(255,255,255,0.6);
+    }
+    .price-note {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.5);
+      margin: 0.5rem 0 1.2rem;
+    }
+    .price-features {
+      list-style: none;
+      text-align: left;
+      font-size: 0.88rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .price-features li::before {
+      content: "✅ ";
+    }
+
+    /* ── FAQ ── */
+    details {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.6rem;
+    }
+    summary {
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      list-style: none;
+    }
+    summary::after { content: " ▼"; color: rgba(255,255,255,0.4); font-size: 0.75rem; }
+    details[open] summary::after { content: " ▲"; }
+    details p {
+      margin-top: 0.7rem;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.65);
+      line-height: 1.7;
+    }
+
+    /* ── フッター ── */
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.3);
+    }
+    footer a { color: rgba(255,255,255,0.4); }
+  </style>
+</head>
+<body>
+
+<!-- ── ヒーロー ─────────────────────── -->
+<div class="hero">
+  <div class="badge">🛒 せどり専用ツール</div>
+  <h1>店頭で<span>即判断</span>。<br>仕入れで迷わない。</h1>
+  <p>バーコードをかざすだけで利益が分かる。<br>AI出品文・在庫管理まで全部ひとつに。</p>
+
+  <div class="hero-img">
+    <div class="screen-mock">
+      <div class="mock-row">
+        <span>ニンテンドースイッチ</span>
+        <span class="buy">✅ 買い！　+¥2,400</span>
+      </div>
+      <div class="mock-row">
+        <span>ポケモンカード 151</span>
+        <span class="mid">🤔 検討　+¥430</span>
+      </div>
+      <div class="mock-row">
+        <span>旧型iPad</span>
+        <span class="bad">❌ やめとこう</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CTA（上部）────────────────────── -->
+<div style="padding: 1.5rem 1.5rem 0; max-width: 480px; margin: 0 auto;">
+  <!-- ※StripeのPayment LinksのURLに差し替えてください -->
+  <a class="btn-primary" href="STRIPE_PAYMENT_LINK_HERE" id="cta-top">
+    💳 今すぐ始める（月額980円）
+  </a>
+  <a class="btn-secondary" href="https://sedori-tool-ynjp2vaw6aydxakeevos4d.streamlit.app" target="_blank">
+    🆓 まず無料で試してみる →
+  </a>
+  <p class="sub-note">いつでも解約可能・初月から全機能使えます</p>
+</div>
+
+<!-- ── 機能紹介 ────────────────────── -->
+<div class="section">
+  <div class="section-title">🔥 できること</div>
+  <ul class="feature-list">
+    <li>
+      <span class="icon">📷</span>
+      <div>
+        <strong>バーコードスキャン → 即判定</strong>
+        <span>JANコードをかざすだけで、仕入れるべきか「買い／検討／やめとこう」で判定</span>
+      </div>
+    </li>
+    <li>
+      <span class="icon">💰</span>
+      <div>
+        <strong>4プラットフォーム同時比較</strong>
+        <span>メルカリ・ラクマ・PayPayフリマ・ヤフオクの利益を一覧で比較</span>
+      </div>
+    </li>
+    <li>
+      <span class="icon">🏷️</span>
+      <div>
+        <strong>状態別の適正売値を自動計算</strong>
+        <span>写真を撮るだけでAIが「未使用／良い／可」を判定して売値を提案</span>
+      </div>
+    </li>
+    <li>
+      <span class="icon">✨</span>
+      <div>
+        <strong>AI出品文を自動生成</strong>
+        <span>商品名・状態・価格を入力するだけで、メルカリに貼れる文章をAIが作成</span>
+      </div>
+    </li>
+    <li>
+      <span class="icon">📝</span>
+      <div>
+        <strong>在庫管理メモ帳</strong>
+        <span>仕入れ候補 → 出品中 → 売却済みの流れで商品を管理。データはクラウド保存</span>
+      </div>
+    </li>
+    <li>
+      <span class="icon">📊</span>
+      <div>
+        <strong>利益ダッシュボード</strong>
+        <span>検索履歴・最高利益・平均利益率をホーム画面でいつでも確認</span>
+      </div>
+    </li>
+  </ul>
+</div>
+
+<!-- ── 料金 ────────────────────────── -->
+<div class="section" style="padding-top: 0;">
+  <div class="section-title">💳 料金プラン</div>
+  <div class="price-card">
+    <div class="plan-name">STANDARD PLAN</div>
+    <div class="price-amount">¥980<small>/月</small></div>
+    <div class="price-note">税込・いつでも解約可</div>
+    <ul class="price-features">
+      <li>全機能すべて使い放題</li>
+      <li>バーコード検索・手動検索</li>
+      <li>AI状態判定・出品文生成</li>
+      <li>在庫管理メモ帳</li>
+      <li>機能アップデート無料</li>
+    </ul>
+  </div>
+
+  <a class="btn-primary" href="STRIPE_PAYMENT_LINK_HERE" id="cta-bottom">
+    💳 今すぐ申し込む
+  </a>
+  <p class="sub-note">Stripe（国内最大手決済）で安全に決済できます</p>
+</div>
+
+<!-- ── FAQ ───────────────────────── -->
+<div class="section" style="padding-top: 0;">
+  <div class="section-title">❓ よくある質問</div>
+
+  <details>
+    <summary>スマホで使えますか？</summary>
+    <p>はい、スマホに最適化されています。店頭でその場で使えるようにデザインされています。<br>バーコード撮影はAndroid Chrome / Safari（iPhone）に対応しています。</p>
+  </details>
+
+  <details>
+    <summary>メルカリの実際の売値が分かりますか？</summary>
+    <p>現在はYahoo!ショッピングの最安値をもとにした目安価格を表示しています。メルカリの実売価格データは今後のアップデートで対応予定です。</p>
+  </details>
+
+  <details>
+    <summary>いつでも解約できますか？</summary>
+    <p>はい、いつでも解約できます。解約月の月末まで引き続きご利用いただけます。</p>
+  </details>
+
+  <details>
+    <summary>支払い方法は何が使えますか？</summary>
+    <p>クレジットカード（VISA・Mastercard・JCB・AMEX）がご利用いただけます。Stripeを通じた安全な決済です。</p>
+  </details>
+
+  <details>
+    <summary>申し込み後すぐ使えますか？</summary>
+    <p>決済完了後、ご登録のメールアドレスにアクセスURLをお送りします。すぐにご利用いただけます。</p>
+  </details>
+</div>
+
+<!-- ── フッター ─────────────────── -->
+<footer>
+  <p>せどり目利きツール</p>
+  <p style="margin-top: 0.4rem;">
+    <a href="https://sedori-tool-ynjp2vaw6aydxakeevos4d.streamlit.app/免責事項" target="_blank">利用規約・プライバシーポリシー</a>
+  </p>
+  <p style="margin-top: 0.4rem;">© 2026 せどり目利きツール</p>
+</footer>
+
+</body>
+</html>
