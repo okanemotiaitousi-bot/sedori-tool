@@ -108,15 +108,14 @@ tab1, tab2, tab3 = st.tabs([
 # ════════════════════════════════════════════════════════
 with tab1:
     if not candidates:
-        st.markdown("""
-        <div class="empty-box">
-         <div style="font-size:2rem">📋</div>
-         <div style="margin-top:0.5rem">まだ何もありません</div>
-         <div style="font-size:0.85rem;margin-top:0.3rem">
-          バーコード検索や手動検索で「メモに追加」してください
-         </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            '<div class="empty-box">'
+            '<div style="font-size:2rem">📋</div>'
+            '<div style="margin-top:0.5rem">まだ何もありません</div>'
+            '<div style="font-size:0.85rem;margin-top:0.3rem">バーコード検索や手動検索で「メモに追加」してください</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
     else:
         total_cost   = sum(m["cost"] for m in candidates)
         total_profit = sum(m["profit"] for m in candidates)
@@ -149,15 +148,15 @@ with tab1:
             else:
                 card_class, icon, color = "bad",   "❌", "profit-neg"
 
-            st.markdown(f"""
-            <div class="memo-card {card_class}">
-             <div class="memo-name">{icon} {m['name'][:28]}</div>
-             <div class="memo-meta">
-              仕入れ ¥{m['cost']:,}　推定売値 ¥{m.get('sell', 0):,}<br>
-              利益 <span class="{color}">{profit_str}（{rate}%）</span>　{m['time']}
-             </div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="memo-card {card_class}">'
+                f'<div class="memo-name">{icon} {m["name"][:28]}</div>'
+                f'<div class="memo-meta">'
+                f'仕入れ ¥{m["cost"]:,}　推定売値 ¥{m.get("sell", 0):,}<br>'
+                f'利益 <span class="{color}">{profit_str}（{rate}%）</span>　{m["time"]}'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
 
             col_a, col_b, col_c = st.columns([3, 3, 1])
             with col_a:
@@ -205,15 +204,14 @@ with tab1:
 # ════════════════════════════════════════════════════════
 with tab2:
     if not listings:
-        st.markdown("""
-        <div class="empty-box">
-         <div style="font-size:2rem">🏪</div>
-         <div style="margin-top:0.5rem">出品中の商品はありません</div>
-         <div style="font-size:0.85rem;margin-top:0.3rem">
-          「仕入れ候補」タブの「出品する」ボタンを押してください
-         </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            '<div class="empty-box">'
+            '<div style="font-size:2rem">🏪</div>'
+            '<div style="margin-top:0.5rem">出品中の商品はありません</div>'
+            '<div style="font-size:0.85rem;margin-top:0.3rem">「仕入れ候補」タブの「出品する」ボタンを押してください</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
     else:
         total_cost           = sum(m["cost"]   for m in listings)
         total_expected_profit = sum(m["profit"] for m in listings)
@@ -231,20 +229,36 @@ with tab2:
         back_idx   = None
         del_idx    = None
 
+        # 売却確定後の祝福メッセージ
+        if st.session_state.get("_sold_flash"):
+            fl   = st.session_state.pop("_sold_flash")
+            sign = "+" if fl["profit"] >= 0 else ""
+            st.markdown(
+                f'<div style="background:linear-gradient(135deg,#2ecc71,#27ae60);color:white;'
+                f'border-radius:16px;padding:1.2rem;text-align:center;margin-bottom:0.8rem">'
+                f'<div style="font-size:1.5rem;font-weight:900">🎉 売却確定！</div>'
+                f'<div style="font-size:1.1rem;margin-top:0.3rem"><strong>{fl["name"][:20]}</strong></div>'
+                f'<div style="font-size:1.3rem;font-weight:bold;margin-top:0.4rem">{sign}¥{fl["profit"]:,} の利益</div>'
+                f'<div style="font-size:0.85rem;opacity:.85;margin-top:.2rem">売値 ¥{fl["sell"]:,}　利益率 {fl["rate"]}%</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
         for m in reversed(listings):
             real_idx    = memo_list.index(m)
             listed_time = m.get("listed_time", "")
             profit_str  = f"¥{m['profit']:,}" if m['profit'] >= 0 else f"-¥{abs(m['profit']):,}"
 
-            st.markdown(f"""
-            <div class="memo-card listing">
-             <div class="memo-name">🏪 {m['name'][:28]}</div>
-             <div class="memo-meta">
-              仕入れ ¥{m['cost']:,}　推定売値 ¥{m.get('sell', 0):,}　見込み利益 {profit_str}<br>
-              {f"出品日 {listed_time}" if listed_time else ""}
-             </div>
-            </div>
-            """, unsafe_allow_html=True)
+            date_line = f'<br>出品日 {listed_time}' if listed_time else ""
+            st.markdown(
+                f'<div class="memo-card listing">'
+                f'<div class="memo-name">🏪 {m["name"][:28]}</div>'
+                f'<div class="memo-meta">'
+                f'仕入れ ¥{m["cost"]:,}　推定売値 ¥{m.get("sell", 0):,}　見込み利益 {profit_str}'
+                f'{date_line}'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
 
             sell_form_key = f"_show_sell_{real_idx}"
 
@@ -287,11 +301,18 @@ with tab2:
                     if st.button("← 候補に戻す", key=f"back_{real_idx}", use_container_width=True):
                         back_idx = real_idx
                 with col_del:
-                    if st.button("🗑️", key=f"del_list_{real_idx}", use_container_width=True):
-                        del_idx = real_idx
+                    confirm_key = f"_confirm_del_list_{real_idx}"
+                    if st.session_state.get(confirm_key):
+                        if st.button("確認", key=f"del_list_ok_{real_idx}",
+                                     use_container_width=True, type="primary"):
+                            del_idx = real_idx
+                    else:
+                        if st.button("🗑️", key=f"del_list_{real_idx}", use_container_width=True):
+                            st.session_state[confirm_key] = True
+                            st.rerun()
 
         if sold_idx is not None and sold_price is not None:
-            sc          = sold_ship or 750
+            sc            = sold_ship or 750
             actual_profit = sold_price - memo_list[sold_idx]["cost"] - sc - round(sold_price * 0.10) - 200
             actual_rate   = round(actual_profit / sold_price * 100, 1) if sold_price > 0 else 0
             st.session_state.memo_list[sold_idx].update({
@@ -302,15 +323,23 @@ with tab2:
                 "sold_time":     datetime.now().strftime("%m/%d %H:%M"),
             })
             st.session_state[f"_show_sell_{sold_idx}"] = False
+            st.session_state["_sold_flash"] = {
+                "name":   memo_list[sold_idx]["name"],
+                "profit": actual_profit,
+                "rate":   actual_rate,
+                "sell":   sold_price,
+            }
             _save()
             st.rerun()
 
         if back_idx is not None:
             st.session_state.memo_list[back_idx]["status"] = "候補"
+            st.session_state.pop(f"_confirm_del_list_{back_idx}", None)
             _save()
             st.rerun()
 
         if del_idx is not None:
+            st.session_state.pop(f"_confirm_del_list_{del_idx}", None)
             st.session_state.memo_list.pop(del_idx)
             _save()
             st.rerun()
@@ -321,12 +350,13 @@ with tab2:
 # ════════════════════════════════════════════════════════
 with tab3:
     if not sold_items:
-        st.markdown("""
-        <div class="empty-box">
-         <div style="font-size:2rem">✅</div>
-         <div style="margin-top:0.5rem">まだ売却済み商品はありません</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            '<div class="empty-box">'
+            '<div style="font-size:2rem">✅</div>'
+            '<div style="margin-top:0.5rem">まだ売却済み商品はありません</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
     else:
         total_sell   = sum(m.get("actual_sell",   m.get("sell",   0)) for m in sold_items)
         total_profit = sum(m.get("actual_profit", m.get("profit", 0)) for m in sold_items)
@@ -365,21 +395,36 @@ with tab3:
             else:
                 diff_str = ""
 
-            st.markdown(f"""
-            <div class="memo-card sold">
-             <div class="memo-name">✅ {m['name'][:28]}</div>
-             <div class="memo-meta">
-              仕入れ ¥{m['cost']:,}　売値 ¥{actual_sell:,}{diff_str}<br>
-              利益 <span class="{color}">{profit_str}（{actual_rate}%）</span>
-              {f"　{sold_time}" if sold_time else ""}
-             </div>
-            </div>
-            """, unsafe_allow_html=True)
+            time_str = f"　{sold_time}" if sold_time else ""
+            st.markdown(
+                f'<div class="memo-card sold">'
+                f'<div class="memo-name">✅ {m["name"][:28]}</div>'
+                f'<div class="memo-meta">'
+                f'仕入れ ¥{m["cost"]:,}　売値 ¥{actual_sell:,}{diff_str}<br>'
+                f'利益 <span class="{color}">{profit_str}（{actual_rate}%）</span>{time_str}'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
 
-            if st.button("🗑️ 削除", key=f"del_sold_{real_idx}"):
-                del_idx = real_idx
+            confirm_key = f"_confirm_del_sold_{real_idx}"
+            if st.session_state.get(confirm_key):
+                col_ok, col_cancel = st.columns(2)
+                with col_ok:
+                    if st.button("本当に削除", key=f"del_sold_ok_{real_idx}",
+                                 type="primary", use_container_width=True):
+                        del_idx = real_idx
+                with col_cancel:
+                    if st.button("キャンセル", key=f"del_sold_cancel_{real_idx}",
+                                 use_container_width=True):
+                        st.session_state[confirm_key] = False
+                        st.rerun()
+            else:
+                if st.button("🗑️ 削除", key=f"del_sold_{real_idx}"):
+                    st.session_state[confirm_key] = True
+                    st.rerun()
 
         if del_idx is not None:
+            st.session_state.pop(f"_confirm_del_sold_{del_idx}", None)
             st.session_state.memo_list.pop(del_idx)
             _save()
             st.rerun()

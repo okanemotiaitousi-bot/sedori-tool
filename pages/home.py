@@ -110,15 +110,29 @@ st.markdown("""
 
 # ── 今日の統計 ──────────────────────────────────────────
 _h = st.session_state.get("search_history", [])
-if _h:
-    _best  = max(h["profit"] for h in _h)
-    _avg_r = round(sum(h["profit_rate"] for h in _h) / len(_h), 1)
-    st.markdown('<div style="padding:0 1rem 0.5rem">', unsafe_allow_html=True)
-    sc1, sc2, sc3 = st.columns(3)
-    sc1.metric("検索件数",  f"{len(_h)} 件")
-    sc2.metric("最高利益",  f"¥{_best:,}")
-    sc3.metric("平均利益率", f"{_avg_r}%")
-    st.markdown('</div>', unsafe_allow_html=True)
+_best  = max((h["profit"] for h in _h), default=0)
+_avg_r = round(sum(h["profit_rate"] for h in _h) / len(_h), 1) if _h else 0.0
+_best_color  = "#aaa" if not _h else ("#2ecc71" if _best >= 800 else ("#f39c12" if _best >= 0 else "#e74c3c"))
+_rate_color  = "#aaa" if not _h else ("#2ecc71" if _avg_r >= 20  else ("#f39c12" if _avg_r >= 8  else "#e74c3c"))
+st.markdown(f"""
+<div style="display:flex;gap:0.5rem;padding:0 0 1rem;justify-content:space-between">
+ <div style="flex:1;background:#fff;border-radius:12px;padding:0.8rem 0.5rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+  <div style="font-size:1.4rem">🔍</div>
+  <div style="font-size:1.3rem;font-weight:900;color:#333">{len(_h)}<span style="font-size:.8rem;color:#999"> 件</span></div>
+  <div style="font-size:.72rem;color:#888;margin-top:.1rem">検索件数</div>
+ </div>
+ <div style="flex:1;background:#fff;border-radius:12px;padding:0.8rem 0.5rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+  <div style="font-size:1.4rem">💰</div>
+  <div style="font-size:1.3rem;font-weight:900;color:{_best_color}">¥{_best:,}</div>
+  <div style="font-size:.72rem;color:#888;margin-top:.1rem">最高利益</div>
+ </div>
+ <div style="flex:1;background:#fff;border-radius:12px;padding:0.8rem 0.5rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+  <div style="font-size:1.4rem">📈</div>
+  <div style="font-size:1.3rem;font-weight:900;color:{_rate_color}">{_avg_r}<span style="font-size:.8rem;color:#999">%</span></div>
+  <div style="font-size:.72rem;color:#888;margin-top:.1rem">平均利益率</div>
+ </div>
+</div>
+""", unsafe_allow_html=True)
 
 # ── クイックアクセス ────────────────────────────────────
 st.markdown('<div class="quick-area">', unsafe_allow_html=True)
@@ -208,7 +222,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 history = st.session_state.get("search_history", [])
 RANK_ICONS = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
 
-if len(history) >= 2:
+if len(history) >= 1:
     ranked = sorted(history, key=lambda x: x["profit_rate"], reverse=True)[:5]
     st.markdown('<div class="rank-area">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">🏆 利益率ランキング（今セッション）</div>', unsafe_allow_html=True)
@@ -216,14 +230,15 @@ if len(history) >= 2:
         p = item["profit"]
         color = "profit-pos" if p >= 500 else ("profit-mid" if p >= 0 else "profit-neg")
         profit_str = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
-        st.markdown(f"""
-        <div class="rank-item">
-         <span class="rank-badge">{RANK_ICONS[i]}</span>
-         <span class="rank-name">{item['name'][:20]}</span>
-         <span class="rank-profit {color}">{profit_str}</span>
-         <span class="rank-rate">{item['profit_rate']}%</span>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="rank-item">'
+            f'<span class="rank-badge">{RANK_ICONS[i]}</span>'
+            f'<span class="rank-name">{item["name"][:20]}</span>'
+            f'<span class="rank-profit {color}">{profit_str}</span>'
+            f'<span class="rank-rate">{item["profit_rate"]}%</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ── 検索履歴 ────────────────────────────────────────────
@@ -245,14 +260,15 @@ if history:
             color_class = "profit-neg"
 
         profit_str = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
-        st.markdown(f"""
-        <div class="history-item">
-         <span>{icon}</span>
-         <span class="hname">{item['name'][:20]}</span>
-         <span class="hprofit {color_class}">{profit_str}</span>
-         <span class="htime">{item['time']}</span>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="history-item">'
+            f'<span>{icon}</span>'
+            f'<span class="hname">{item["name"][:20]}</span>'
+            f'<span class="hprofit {color_class}">{profit_str}</span>'
+            f'<span class="htime">{item["time"]}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
     if st.button("🗑️ 履歴を消す", key="clear_history"):
         st.session_state.search_history = []

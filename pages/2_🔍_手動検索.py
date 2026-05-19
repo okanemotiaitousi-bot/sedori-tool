@@ -157,6 +157,7 @@ if hits:
                     already = any(m.get("name") == name for m in st.session_state.memo_list)
                     if already:
                         st.info("📝 メモ帳に保存済み")
+                        st.page_link("pages/5_📝_メモ帳.py", label="📋 メモ帳を開く", use_container_width=True)
                     else:
                         if st.button("📝 仕入れ候補にメモ", key=f"memo_{name[:20]}"):
                             st.session_state.memo_list.append({
@@ -168,6 +169,7 @@ if hits:
                                 "profit_rate": profit_rate,
                                 "time": datetime.now().strftime("%H:%M"),
                                 "status": "候補",
+                                "ship_name": ship_name,
                             })
                             if gs.is_enabled():
                                 gs.save_memo_list(st.session_state.memo_list)

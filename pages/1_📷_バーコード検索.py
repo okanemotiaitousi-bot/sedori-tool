@@ -195,9 +195,9 @@ elif st.session_state.barcode_screen == "result":
 
     # 仕入れ値が未入力（0）でも計算・表示する（0円仕入れも有効な入力として扱う）
     if p["price"] and int(p["price"]) < 1500:
-        ship_cost, ship_name = 230, "ゆうパケット"
+        ship_cost, ship_name = 230, "ゆうパケット（230円）"
     else:
-        ship_cost, ship_name = 750, "らくらく60"
+        ship_cost, ship_name = 750, "らくらくメルカリ便 60サイズ（750円）"
 
     if p["price"] and int(p["price"]) > 0:
         sell = round(int(p["price"]) * 0.62)
@@ -243,7 +243,7 @@ elif st.session_state.barcode_screen == "result":
             unsafe_allow_html=True,
         )
 
-    st.caption(f"推定売値 ¥{sell:,}　送料 {ship_name}（¥{ship_cost}）で計算")
+    st.caption(f"推定売値 ¥{sell:,}　送料 ¥{ship_cost} で計算")
 
     # ── ヤフオク落札相場 ────────────────────────────
     with st.expander("📦 ヤフオク落札相場を見る"):
@@ -257,21 +257,23 @@ elif st.session_state.barcode_screen == "result":
     already = any(m.get("jan") == jan for m in st.session_state.memo_list)
     if already:
         st.info("📝 メモ帳に保存済み")
+        st.page_link("pages/5_📝_メモ帳.py", label="📋 メモ帳を開く", use_container_width=True)
     else:
-            if st.button("📝 仕入れ候補にメモ", key="btn_add_memo"):
-                st.session_state.memo_list.append({
-                    "name": p["name"],
-                    "jan": jan,
-                    "cost": cost,
-                    "sell": sell,
-                    "profit": profit,
-                    "profit_rate": profit_rate,
-                    "time": datetime.now().strftime("%H:%M"),
-                    "status": "候補",
-                })
-                if gs.is_enabled():
-                    gs.save_memo_list(st.session_state.memo_list)
-                st.rerun()
+        if st.button("📝 仕入れ候補にメモ", key="btn_add_memo"):
+            st.session_state.memo_list.append({
+                "name": p["name"],
+                "jan": jan,
+                "cost": cost,
+                "sell": sell,
+                "profit": profit,
+                "profit_rate": profit_rate,
+                "time": datetime.now().strftime("%H:%M"),
+                "status": "候補",
+                "ship_name": ship_name,
+            })
+            if gs.is_enabled():
+                gs.save_memo_list(st.session_state.memo_list)
+            st.rerun()
 
     st.markdown("")
     if st.button("📊 詳細を見る", key="btn_to_detail"):
