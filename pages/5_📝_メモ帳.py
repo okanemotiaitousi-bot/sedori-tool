@@ -57,6 +57,15 @@ st.title("📝 仕入れメモ帳")
 st.caption("仕入れ候補 → 出品中 → 売却済み の流れで管理できます")
 st.divider()
 
+# ── 保存ヘルパー ─────────────────────────────────────────
+def _save():
+    """変更後に呼ぶ。Sheets が有効なら保存する。"""
+    if gs.is_enabled():
+        ok = gs.save_memo_list(st.session_state.memo_list)
+        if not ok:
+            st.warning("⚠️ スプレッドシートへの保存に失敗しました")
+
+
 # ── 初期化・シートからのロード ───────────────────────────
 if "memo_list" not in st.session_state:
     st.session_state.memo_list = []
@@ -71,18 +80,15 @@ if "sheets_loaded" not in st.session_state:
         new_items   = [m for m in st.session_state.memo_list
                        if (m["name"], m["jan"]) not in loaded_keys]
         st.session_state.memo_list = loaded + new_items
+        # 未保存のアイテムがあればすぐにシートに書き込む
+        if new_items:
+            _save()
     st.session_state.sheets_loaded = True
 
 # 旧データのマイグレーション
 for item in st.session_state.memo_list:
     if "status" not in item:
         item["status"] = "候補"
-
-
-def _save():
-    """変更後に呼ぶ。Sheets が有効なら保存する。"""
-    if gs.is_enabled():
-        gs.save_memo_list(st.session_state.memo_list)
 
 memo_list = st.session_state.memo_list
 candidates = [m for m in memo_list if m.get("status") == "候補"]

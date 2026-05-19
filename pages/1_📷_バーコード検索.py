@@ -3,6 +3,7 @@ import requests
 from PIL import Image
 from datetime import datetime
 from utils import show_auction_prices, generate_listing_text
+import sheets as gs
 
 st.markdown("""
 <style>
@@ -257,17 +258,20 @@ elif st.session_state.barcode_screen == "result":
     if already:
         st.info("📝 メモ帳に保存済み")
     else:
-        if st.button("📝 仕入れ候補にメモ", key="btn_add_memo"):
-            st.session_state.memo_list.append({
-                "name": p["name"],
-                "jan": jan,
-                "cost": cost,
-                "sell": sell,
-                "profit": profit,
-                "profit_rate": profit_rate,
-                "time": datetime.now().strftime("%H:%M"),
-            })
-            st.rerun()
+            if st.button("📝 仕入れ候補にメモ", key="btn_add_memo"):
+                st.session_state.memo_list.append({
+                    "name": p["name"],
+                    "jan": jan,
+                    "cost": cost,
+                    "sell": sell,
+                    "profit": profit,
+                    "profit_rate": profit_rate,
+                    "time": datetime.now().strftime("%H:%M"),
+                    "status": "候補",
+                })
+                if gs.is_enabled():
+                    gs.save_memo_list(st.session_state.memo_list)
+                st.rerun()
 
     st.markdown("")
     if st.button("📊 詳細を見る", key="btn_to_detail"):

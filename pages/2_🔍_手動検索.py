@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 from utils import show_auction_prices
+import sheets as gs
 
 
 st.markdown("""
@@ -166,7 +167,10 @@ if hits:
                                 "profit": profit,
                                 "profit_rate": profit_rate,
                                 "time": datetime.now().strftime("%H:%M"),
+                                "status": "候補",
                             })
+                            if gs.is_enabled():
+                                gs.save_memo_list(st.session_state.memo_list)
                             st.rerun()
 
 
