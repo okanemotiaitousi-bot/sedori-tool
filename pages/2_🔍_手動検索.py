@@ -27,7 +27,8 @@ st.title("🔍 手動検索")
 st.divider()
 
 # ── 入力を上に全部まとめる ────────────────────────────────
-keyword = st.text_input("商品名を入力", placeholder="例：ビオレ 洗顔フォーム")
+_default_kw = st.session_state.pop("_prefill_kw", "")
+keyword = st.text_input("商品名を入力", value=_default_kw, placeholder="例：ビオレ 洗顔フォーム")
 
 col1, col2 = st.columns(2)
 with col1:

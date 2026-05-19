@@ -117,31 +117,95 @@ if "search_history" not in st.session_state:
     else:
         st.session_state.search_history = []
 
-# ── 今日の統計 ──────────────────────────────────────────
-_h = st.session_state.get("search_history", [])
+# ── 統計データ計算 ────────────────────────────────────────
+_h     = st.session_state.get("search_history", [])
 _best  = max((h["profit"] for h in _h), default=0)
 _avg_r = round(sum(h["profit_rate"] for h in _h) / len(_h), 1) if _h else 0.0
-_best_color  = "#aaa" if not _h else ("#2ecc71" if _best >= 800 else ("#f39c12" if _best >= 0 else "#e74c3c"))
-_rate_color  = "#aaa" if not _h else ("#2ecc71" if _avg_r >= 20  else ("#f39c12" if _avg_r >= 8  else "#e74c3c"))
-st.markdown(f"""
-<div style="display:flex;gap:0.5rem;padding:0 0 1rem;justify-content:space-between">
- <div style="flex:1;background:#fff;border-radius:12px;padding:0.8rem 0.5rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)">
-  <div style="font-size:1.4rem">🔍</div>
-  <div style="font-size:1.3rem;font-weight:900;color:#333">{len(_h)}<span style="font-size:.8rem;color:#999"> 件</span></div>
-  <div style="font-size:.72rem;color:#888;margin-top:.1rem">検索件数</div>
- </div>
- <div style="flex:1;background:#fff;border-radius:12px;padding:0.8rem 0.5rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)">
-  <div style="font-size:1.4rem">💰</div>
-  <div style="font-size:1.3rem;font-weight:900;color:{_best_color}">¥{_best:,}</div>
-  <div style="font-size:.72rem;color:#888;margin-top:.1rem">最高利益</div>
- </div>
- <div style="flex:1;background:#fff;border-radius:12px;padding:0.8rem 0.5rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)">
-  <div style="font-size:1.4rem">📈</div>
-  <div style="font-size:1.3rem;font-weight:900;color:{_rate_color}">{_avg_r}<span style="font-size:.8rem;color:#999">%</span></div>
-  <div style="font-size:.72rem;color:#888;margin-top:.1rem">平均利益率</div>
- </div>
-</div>
-""", unsafe_allow_html=True)
+_best_item = max(_h, key=lambda x: x["profit"]) if _h else None
+
+RANK_ICONS = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+
+# ── 統計カード（タップで詳細） ────────────────────────────
+if not _h:
+    st.markdown(
+        '<div style="background:#f8f9fa;border-radius:14px;padding:1.5rem;text-align:center;color:#aaa;margin-bottom:1rem">'
+        '<div style="font-size:2rem">🔍</div>'
+        '<div style="font-size:0.95rem;margin-top:0.4rem;font-weight:600;color:#666">まだ検索履歴がありません</div>'
+        '<div style="font-size:0.82rem;margin-top:0.3rem">バーコード検索か手動検索で仕入れ値を入力して検索してみよう</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+else:
+    # 検索件数
+    with st.expander(f"🔍　検索件数　**{len(_h)} 件**　▼ タップで一覧"):
+        st.caption("商品をタップすると手動検索で再検索できます")
+        for item in reversed(_h[-10:]):
+            p    = item["profit"]
+            icon = "✅" if p >= 500 else ("🤔" if p >= 0 else "❌")
+            ps   = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
+            hc1, hc2 = st.columns([3, 1])
+            hc1.markdown(f"**{item['name'][:22]}**  \n{icon} {ps}（{item['profit_rate']}%）　{item['time']}")
+            with hc2:
+                if st.button("🔍", key=f"re_{item['name'][:15]}_{item['time']}",
+                             use_container_width=True, help="この商品を再検索"):
+                    st.session_state["_prefill_kw"]    = item["name"]
+                    st.session_state["search_keyword"] = item["name"]
+                    st.session_state["search_cost"]    = item.get("cost", 0)
+                    st.session_state["search_ship"]    = item.get("ship_cost", 750)
+                    st.session_state["search_results"] = None
+                    st.switch_page("pages/2_🔍_手動検索.py")
+        if st.button("🗑️ 履歴を消す", key="clear_history"):
+            st.session_state.search_history = []
+            st.rerun()
+
+    # 最高利益
+    _best_color = "#2ecc71" if _best >= 800 else ("#f39c12" if _best >= 0 else "#e74c3c")
+    with st.expander(f"💰　最高利益　**¥{_best:,}**　▼ タップで詳細"):
+        if _best_item:
+            bsell  = _best_item.get("sell", 0)
+            bcost  = _best_item.get("cost", 0)
+            bship  = _best_item.get("ship_cost", 750)
+            brate  = _best_item.get("profit_rate", 0)
+            st.markdown(f"**{_best_item['name']}**")
+            bc1, bc2, bc3 = st.columns(3)
+            bc1.metric("仕入れ値", f"¥{bcost:,}")
+            bc2.metric("売値",     f"¥{bsell:,}")
+            bc3.metric("利益率",   f"{brate}%")
+            if bsell > 0:
+                st.markdown("**プラットフォーム別利益**")
+                best_p, best_n = -999999, ""
+                for pname, fee_rate, transfer in [
+                    ("メルカリ", 0.10, 200), ("ラクマ", 0.066, 0),
+                    ("PayPayフリマ", 0.05, 0), ("ヤフオク", 0.088, 0),
+                ]:
+                    pr = bsell - bcost - bship - round(bsell * fee_rate) - transfer
+                    pr_rate = round(pr / bsell * 100, 1)
+                    if pr > best_p:
+                        best_p, best_n = pr, pname
+                    pc1, pc2 = st.columns([2, 1])
+                    pc1.write(f"**{pname}**")
+                    pc2.write(f"¥{pr:,}（{pr_rate}%）")
+                st.success(f"✅ 最も利益が出るのは **{best_n}**（¥{best_p:,}）")
+
+    # 平均利益率
+    _rate_color = "#2ecc71" if _avg_r >= 20 else ("#f39c12" if _avg_r >= 8 else "#e74c3c")
+    with st.expander(f"📈　平均利益率　**{_avg_r}%**　▼ タップでランキング"):
+        ranked = sorted(_h, key=lambda x: x["profit_rate"], reverse=True)[:5]
+        for i, item in enumerate(ranked):
+            p   = item["profit"]
+            clr = "profit-pos" if p >= 500 else ("profit-mid" if p >= 0 else "profit-neg")
+            ps  = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
+            st.markdown(
+                f'<div class="rank-item">'
+                f'<span class="rank-badge">{RANK_ICONS[i]}</span>'
+                f'<span class="rank-name">{item["name"][:20]}</span>'
+                f'<span class="rank-profit {clr}">{ps}</span>'
+                f'<span class="rank-rate">{item["profit_rate"]}%</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+st.divider()
 
 # ── クイックアクセス ────────────────────────────────────
 st.markdown('<div class="quick-area">', unsafe_allow_html=True)
@@ -226,82 +290,3 @@ with st.expander("📊 詳細・おすすめ売値を見る"):
         st.caption("売値を入力すると詳細が表示されます")
 
 st.markdown('</div>', unsafe_allow_html=True)
-
-# ── 利益率ランキング ─────────────────────────────────────
-history = st.session_state.get("search_history", [])
-RANK_ICONS = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
-
-if len(history) >= 1:
-    ranked = sorted(history, key=lambda x: x["profit_rate"], reverse=True)[:5]
-    st.markdown('<div class="rank-area">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">🏆 利益率ランキング（今セッション）</div>', unsafe_allow_html=True)
-    for i, item in enumerate(ranked):
-        p = item["profit"]
-        color = "profit-pos" if p >= 500 else ("profit-mid" if p >= 0 else "profit-neg")
-        profit_str = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
-        st.markdown(
-            f'<div class="rank-item">'
-            f'<span class="rank-badge">{RANK_ICONS[i]}</span>'
-            f'<span class="rank-name">{item["name"][:20]}</span>'
-            f'<span class="rank-profit {color}">{profit_str}</span>'
-            f'<span class="rank-rate">{item["profit_rate"]}%</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# ── 検索履歴 ────────────────────────────────────────────
-history = st.session_state.get("search_history", [])
-if history:
-    st.markdown('<div class="history-area">', unsafe_allow_html=True)
-    st.markdown('<div class="section-title">🕐 最近の検索（タップで詳細）</div>', unsafe_allow_html=True)
-
-    for i, item in enumerate(reversed(history[-10:])):
-        p    = item["profit"]
-        cost = item.get("cost", 0)
-        sell = item.get("sell", 0)
-        rate = item.get("profit_rate", 0)
-
-        if p >= 500:
-            icon = "✅"
-            color_class = "profit-pos"
-        elif p >= 0:
-            icon = "🤔"
-            color_class = "profit-mid"
-        else:
-            icon = "❌"
-            color_class = "profit-neg"
-
-        profit_str = f"+¥{p:,}" if p >= 0 else f"-¥{abs(p):,}"
-
-        with st.expander(
-            f"{icon} {item['name'][:18]}　{profit_str}（{rate}%）　{item['time']}",
-            expanded=False,
-        ):
-            if sell > 0:
-                ship_cost = item.get("ship_cost", 750)
-                breakeven    = round((cost + ship_cost + 200) / (1 - 0.10))
-                recommended  = round((cost + ship_cost + 200) / (1 - 0.10) / (1 - 0.20))
-                ec1, ec2 = st.columns(2)
-                ec1.metric("損益分岐点", f"¥{breakeven:,}")
-                ec2.metric("推奨売値（利益20%）", f"¥{recommended:,}")
-                st.markdown("**プラットフォーム別利益**")
-                for pname, fee_rate, transfer in [
-                    ("メルカリ",     0.10,  200),
-                    ("ラクマ",       0.066,   0),
-                    ("PayPayフリマ", 0.05,    0),
-                    ("ヤフオク",     0.088,   0),
-                ]:
-                    pr      = sell - cost - ship_cost - round(sell * fee_rate) - transfer
-                    pr_rate = round(pr / sell * 100, 1)
-                    pc1, pc2 = st.columns([2, 1])
-                    pc1.write(f"**{pname}**")
-                    pc2.write(f"¥{pr:,}（{pr_rate}%）")
-            else:
-                st.caption("売値情報がないため詳細を表示できません")
-
-    if st.button("🗑️ 履歴を消す", key="clear_history"):
-        st.session_state.search_history = []
-        st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
