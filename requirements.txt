@@ -8,3 +8,4 @@ google-auth
 streamlit-authenticator
 PyYAML
 bcrypt
+beautifulsoup4

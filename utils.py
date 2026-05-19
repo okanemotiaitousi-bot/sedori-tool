@@ -1,9 +1,10 @@
 """
 共通ユーティリティ
-- ヤフオク落札相場取得・表示
+- ヤフオク落札相場取得・表示（スクレイピング）
 - Yahoo!ショッピング最安値取得
 - Gemini 出品文自動生成
 """
+import re
 import urllib.parse
 import requests
 import streamlit as st
@@ -11,10 +12,6 @@ import streamlit as st
 
 # ── Gemini 出品文自動生成 ─────────────────────────────────
 def generate_listing_text(product_name: str, condition: str, sell_price: int, ship_name: str) -> str:
-    """
-    Gemini で メルカリ出品文を自動生成する。
-    condition : 未使用・新品同様 / 良い / 可 / 不可
-    """
     import google.generativeai as genai
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
     model = genai.GenerativeModel("gemini-1.5-flash")
@@ -40,21 +37,10 @@ def generate_listing_text(product_name: str, condition: str, sell_price: int, sh
 
 # ── Yahoo!ショッピング最安値取得 ──────────────────────────
 def fetch_yahoo_lowest_price(query: str, app_id: str) -> int | None:
-    """
-    Yahoo!ショッピングAPIで商品名から最安値を取得する。
-    関連度順で上位10件を取得し、その中の最安値を返すことで
-    関係ないアクセサリ等の激安品を除外する。
-    見つからない場合は None を返す。
-    """
     try:
         res = requests.get(
             "https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch",
-            params={
-                "appid": app_id,
-                "query": query,
-                "results": 10,
-                "sort": "-score",
-            },
+            params={"appid": app_id, "query": query, "results": 10, "sort": "-score"},
             timeout=5,
         )
         hits = res.json().get("hits", [])
@@ -64,82 +50,79 @@ def fetch_yahoo_lowest_price(query: str, app_id: str) -> int | None:
         return None
 
 
-# ── ヤフオク落札相場取得 ──────────────────────────────────
-def _parse_items(items_raw: list | dict, completed: bool) -> tuple[list, list]:
-    """APIレスポンスのItemリストをパースしてitemsとpricesを返す"""
-    if isinstance(items_raw, dict):
-        items_raw = [items_raw]
-
-    items, prices = [], []
-    for item in items_raw:
-        try:
-            if completed:
-                raw = item.get("Price") or "0"
-            else:
-                raw = item.get("CurrentPrice") or item.get("Price") or "0"
-            price = int(str(raw).replace(",", ""))
-            if price <= 0:
-                continue
-            end_time = item.get("EndTime", "")
-            end_short = end_time[5:10].replace("-", "/") if len(end_time) >= 10 else ""
-            items.append({"title": item.get("Title", ""), "price": price, "end": end_short})
-            prices.append(price)
-        except Exception:
-            continue
-    return items, prices
+# ── ヤフオク落札相場スクレイピング ────────────────────────
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
+    )
+}
 
 
-def _call_auction_api(endpoint: str, params: dict) -> dict | None:
-    """ヤフオクAPIを呼び出してJSONを返す。エラー時はNone"""
+def _scrape_auction_prices(query: str, results: int = 20) -> dict | None:
+    """
+    Yahoo!オークションの落札済み検索ページをスクレイピングして
+    落札相場データを返す。取得できなかった場合は None。
+    """
     try:
-        res = requests.get(endpoint, params=params, timeout=8)
-        data = res.json()
-        if "Error" in data:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return None
+
+    url = (
+        "https://auctions.yahoo.co.jp/search/search"
+        f"?p={urllib.parse.quote(query)}&auccat=0&s1=end&o1=d&mode=2"
+    )
+
+    try:
+        res = requests.get(url, headers=_HEADERS, timeout=10)
+        if res.status_code != 200:
             return None
-        return data
     except Exception:
         return None
 
+    soup = BeautifulSoup(res.text, "html.parser")
+    li_items = soup.find_all("li", class_="Item")
 
-def _fetch_auction_history(query: str, app_id: str, results: int = 20) -> dict | None:
-    """
-    ヤフオク落札済み検索（API権限がない場合はNoneを返す）
-    """
-    base_params = {"appid": app_id, "query": query, "results": results}
+    parsed, prices = [], []
+    for li in li_items:
+        if len(parsed) >= results:
+            break
+        try:
+            a = li.find("a", class_="Item__imageLink")
+            if not a:
+                continue
+            price_raw = a.get("data-auction-price", "").strip()
+            if not price_raw:
+                continue
+            price = int(price_raw)
+            if price <= 0:
+                continue
 
-    data = _call_auction_api(
-        "https://auctions.yahooapis.jp/AuctionWebService/V2/json/searchCompletedAuctions",
-        {**base_params, "sort": "end", "order": "d"},
-    )
-    if data:
-        items_raw = data.get("ResultSet", {}).get("Result", {}).get("Item", [])
-        if items_raw:
-            items, prices = _parse_items(items_raw, completed=True)
-            if prices:
-                return _build_result(items, prices, completed=True)
+            # タイトルは複数のクラス候補から取得
+            title_el = (
+                li.find("p", class_="Item__title")
+                or li.find("h3", class_="Item__title")
+                or li.find(class_=lambda c: c and "title" in c.lower())
+            )
+            title = title_el.get_text(strip=True) if title_el else ""
 
-    data = _call_auction_api(
-        "https://auctions.yahooapis.jp/AuctionWebService/V2/json/search",
-        {**base_params, "sort": "cbids", "order": "d"},
-    )
-    if data:
-        items_raw = data.get("ResultSet", {}).get("Result", {}).get("Item", [])
-        if items_raw:
-            items, prices = _parse_items(items_raw, completed=False)
-            if prices:
-                return _build_result(items, prices, completed=False)
+            parsed.append({"title": title, "price": price, "end": ""})
+            prices.append(price)
+        except Exception:
+            continue
 
-    return None
+    if not prices:
+        return None
 
-
-def _build_result(items: list, prices: list, completed: bool) -> dict:
     return {
         "avg": round(sum(prices) / len(prices)),
         "min": min(prices),
         "max": max(prices),
         "count": len(prices),
-        "items": items[:5],
-        "completed": completed,
+        "items": parsed[:5],
+        "completed": True,
+        "source": "scrape",
     }
 
 
@@ -147,68 +130,52 @@ def _build_result(items: list, prices: list, completed: bool) -> dict:
 def show_auction_prices(product_name: str, cache_key: str):
     """
     ヤフオク落札相場をStreamlitウィジェットで表示する。
-    product_name : APIに渡す検索キーワード
-    cache_key    : session_stateのキャッシュ識別子
+    まずスクレイピングで取得し、失敗時は直リンクを表示する。
     """
     q = urllib.parse.quote(product_name)
-
-    # 落札済み検索URL（mode=2 で落札済みタブが開く）
     completed_url = (
-        f"https://auctions.yahoo.co.jp/search/search?p={q}"
-        "&auccat=0&s1=end&o1=d&mode=2"
-    )
-    # 現在出品中URL
-    active_url = (
-        f"https://auctions.yahoo.co.jp/search/search?p={q}"
-        "&auccat=0&s1=cbids&o1=d"
+        f"https://auctions.yahoo.co.jp/search/search?p={q}&auccat=0&s1=end&o1=d&mode=2"
     )
 
     field = f"_auction_{cache_key}"
 
     if field not in st.session_state:
-        with st.spinner("ヤフオク相場を確認中..."):
-            try:
-                st.session_state[field] = _fetch_auction_history(
-                    product_name, st.secrets["YAHOO_APP_ID"]
-                )
-            except Exception:
-                st.session_state[field] = None
+        with st.spinner("ヤフオク落札相場を取得中..."):
+            st.session_state[field] = _scrape_auction_prices(product_name)
 
     data = st.session_state[field]
 
     if data is not None:
-        label = "落札済み" if data.get("completed", True) else "現在出品中（参考）"
         c1, c2, c3 = st.columns(3)
-        c1.metric("平均", f"¥{data['avg']:,}")
-        c2.metric("最低", f"¥{data['min']:,}")
-        c3.metric("最高", f"¥{data['max']:,}")
-        st.caption(f"直近 {data['count']} 件・{label}（ヤフオク）")
+        c1.metric("平均落札", f"¥{data['avg']:,}")
+        c2.metric("最低",     f"¥{data['min']:,}")
+        c3.metric("最高",     f"¥{data['max']:,}")
+        st.caption(f"直近 {data['count']} 件の落札価格（ヤフオク）")
+
         if data["items"]:
             for item in data["items"]:
                 c1, c2 = st.columns([4, 1])
-                c1.caption(item["title"][:35])
-                c2.caption(f"¥{item['price']:,}　{item['end']}")
-        st.markdown(f"[🔗 ヤフオクで検索する →]({active_url})")
+                c1.caption(item["title"][:36] if item["title"] else "（タイトル取得不可）")
+                c2.caption(f"¥{item['price']:,}")
+
+        st.markdown(
+            f'<a href="{completed_url}" target="_blank" '
+            f'style="font-size:0.82rem;color:#888">🔗 ヤフオクで詳細を確認する →</a>',
+            unsafe_allow_html=True,
+        )
     else:
         st.markdown(
             f"""
 <div style="background:#f8f9fa;border-radius:12px;padding:1rem 1.2rem;margin:0.3rem 0">
-  <div style="font-size:0.85rem;color:#555;margin-bottom:0.6rem">
-    📦 <strong>ヤフオク落札相場</strong>　下のリンクから確認できます
+  <div style="font-size:0.85rem;color:#555;margin-bottom:0.7rem">
+    📦 <strong>ヤフオク落札相場</strong>
   </div>
-  <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
-    <a href="{completed_url}" target="_blank"
-       style="background:#ff6b35;color:white;padding:0.4rem 0.9rem;border-radius:8px;
-              text-decoration:none;font-size:0.85rem;font-weight:bold">
-      🏷️ 落札済みを見る
-    </a>
-    <a href="{active_url}" target="_blank"
-       style="background:#fff;color:#ff6b35;padding:0.4rem 0.9rem;border-radius:8px;
-              text-decoration:none;font-size:0.85rem;font-weight:bold;
-              border:1.5px solid #ff6b35">
-      📋 出品中を見る
-    </a>
-  </div>
+  <a href="{completed_url}" target="_blank"
+     style="display:block;background:#ff6b35;color:white;padding:0.55rem 1rem;
+            border-radius:10px;text-decoration:none;font-size:0.9rem;
+            font-weight:bold;text-align:center">
+    🏷️ 落札済み価格を確認する →
+  </a>
 </div>
 """,
             unsafe_allow_html=True,
