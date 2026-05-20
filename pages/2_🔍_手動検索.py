@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 from datetime import datetime
-from utils import show_auction_prices
+from utils import show_auction_prices, show_paywall_dialog
 import sheets as gs
 
 # ── 検索履歴のロード（セッション初回のみ）────────────────
@@ -170,10 +170,15 @@ if hits:
                     # メモに追加ボタン
                     if "memo_list" not in st.session_state:
                         st.session_state.memo_list = []
+                    _need_paywall = st.session_state.get("_require_login", False) and _uid == "default"
                     already = any(m.get("name") == name for m in st.session_state.memo_list)
                     if already:
                         st.info("📝 メモ帳に保存済み")
                         st.page_link("pages/5_📝_メモ帳.py", label="📋 メモ帳を開く", use_container_width=True)
+                    elif _need_paywall:
+                        # ── 未ログイン時：ボタンを押したらペイウォールポップアップ ──
+                        if st.button("📝 仕入れ候補にメモ", key=f"memo_{name[:20]}", use_container_width=True):
+                            show_paywall_dialog()
                     else:
                         if st.button("📝 仕入れ候補にメモ", key=f"memo_{name[:20]}"):
                             st.session_state.memo_list.append({

@@ -3,11 +3,123 @@
 - ヤフオク落札相場取得・表示（スクレイピング）
 - Yahoo!ショッピング最安値取得
 - Gemini 出品文自動生成
+- ペイウォール表示
 """
 import re
 import urllib.parse
 import requests
 import streamlit as st
+
+
+# ── ペイウォール ───────────────────────────────────────────
+def _paywall_content():
+    """
+    ペイウォールの共通コンテンツ。
+    - Stripe 決済リンク（Secrets に STRIPE_PAYMENT_LINK があれば有効）
+    - streamlit-authenticator ログインフォーム（Secrets に credentials があれば表示）
+    - ログイン成功時は user_id を更新して st.rerun() する
+    """
+    st.markdown(
+        """
+<div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 60%,#0f3460 100%);
+ color:white;border-radius:20px;padding:2rem 1.5rem;text-align:center;margin-bottom:1.2rem">
+ <div style="font-size:3rem">🔒</div>
+ <h2 style="margin:0.5rem 0 0.3rem;font-size:1.35rem;font-weight:900">プレミアムプラン限定機能</h2>
+ <p style="font-size:0.88rem;opacity:0.8;margin:0;line-height:1.6">
+  仕入れメモ帳への保存・閲覧は<br>プレミアムプラン会員専用です
+ </p>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    stripe_url = str(st.secrets.get("STRIPE_PAYMENT_LINK", "")).strip()
+    has_stripe = stripe_url and stripe_url != "STRIPE_PAYMENT_LINK_HERE"
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if has_stripe:
+            st.link_button(
+                "💳 プランに登録する",
+                stripe_url,
+                use_container_width=True,
+                type="primary",
+            )
+        else:
+            st.button("💳 準備中", disabled=True, use_container_width=True)
+    with col2:
+        st.page_link(
+            "pages/4_📋_免責事項.py",
+            label="📋 料金・利用規約",
+            use_container_width=True,
+        )
+
+    # ── ログインフォーム（credentials が設定されている場合のみ表示）──
+    creds = st.secrets.get("credentials", {})
+    if not creds:
+        return
+
+    st.divider()
+    st.markdown("**📧 登録済みの方はこちらからログイン**")
+
+    try:
+        import streamlit_authenticator as stauth
+
+        cookie_cfg = st.secrets.get(
+            "cookie",
+            {"name": "sedori_tool_auth", "key": "sedori_secret_key_2026", "expiry_days": 30},
+        )
+        authenticator = stauth.Authenticate(
+            dict(creds),
+            cookie_cfg.get("name", "sedori_tool_auth"),
+            cookie_cfg.get("key", "sedori_secret_key_2026"),
+            int(cookie_cfg.get("expiry_days", 30)),
+        )
+        try:
+            authenticator.login(
+                location="main",
+                fields={
+                    "Form name": "ログイン",
+                    "Username": "ユーザー名",
+                    "Password": "パスワード",
+                    "Login": "ログインする",
+                },
+            )
+        except Exception:
+            authenticator.login()
+
+        status = st.session_state.get("authentication_status")
+        if status is True:
+            st.session_state.user_id = st.session_state.get("username", "default")
+            st.rerun()
+        elif status is False:
+            st.error("ユーザー名またはパスワードが違います")
+        else:
+            st.info(_contact_msg())
+
+    except Exception:
+        st.warning("ログイン機能を初期化できませんでした。管理者にお問い合わせください。")
+
+
+def _contact_msg() -> str:
+    return "ご購入後にお送りしたIDとパスワードを入力してください。"
+
+
+@st.dialog("🔒 プレミアムプラン限定機能")
+def show_paywall_dialog():
+    """
+    メモボタン押下時に呼ぶポップアップ型ペイウォール。
+    usage: if st.button("📝 メモに追加"): show_paywall_dialog()
+    """
+    _paywall_content()
+
+
+def show_paywall_page():
+    """
+    メモ帳ページ先頭で呼ぶフルページ型ペイウォール。
+    呼び出し後は必ず st.stop() すること。
+    """
+    _paywall_content()
 
 
 # ── Gemini 出品文自動生成 ─────────────────────────────────

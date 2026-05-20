@@ -1,7 +1,14 @@
 import streamlit as st
 from datetime import datetime
-from utils import generate_listing_text
+from utils import generate_listing_text, show_paywall_page
 import sheets as gs
+
+# ── ペイウォール：未ログイン時はここで止める ─────────────────
+_uid = st.session_state.get("user_id", "default")
+if st.session_state.get("_require_login", False) and _uid == "default":
+    st.title("📝 仕入れメモ帳")
+    show_paywall_page()
+    st.stop()
 
 CONDS = ["未使用・新品同様", "良い", "可", "不可"]
 SHIP_OPTIONS = [
@@ -57,8 +64,7 @@ st.title("📝 仕入れメモ帳")
 st.caption("仕入れ候補 → 出品中 → 売却済み の流れで管理できます")
 st.divider()
 
-# ── ユーザーID取得 ────────────────────────────────────────
-_uid = st.session_state.get("user_id", "default")
+# _uid はペイウォール判定で既に取得済み
 
 # ── 保存ヘルパー ─────────────────────────────────────────
 def _save():

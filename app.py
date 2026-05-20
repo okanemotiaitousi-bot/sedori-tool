@@ -6,98 +6,110 @@ st.set_page_config(
     layout="centered",
 )
 
-# ── 全ページ共有のsession state初期化 ─────────────────────
+# ── セッション state 初期化（全ページ共有）──────────────────
 if "search_history" not in st.session_state:
     st.session_state.search_history = []
 
-# ログインしていない場合はデフォルトユーザー
+# ── ニックネーム入力（初回のみ・user_id として使用）─────────
 if "user_id" not in st.session_state:
-    st.session_state.user_id = "default"
-
-# ── ログイン機能（REQUIRE_LOGIN=true のときのみ有効）─────
-def _run_with_auth():
-    """認証ありでアプリを実行する"""
-    try:
-        import streamlit_authenticator as stauth
-        import yaml
-    except ImportError:
-        st.error("streamlit-authenticator が必要です: pip install streamlit-authenticator")
-        st.stop()
-
-    # Secretsからユーザー情報を読み込む
-    creds = st.secrets.get("credentials", {})
-    if not creds:
-        st.error("Secretsに credentials が設定されていません。管理者にお問い合わせください。")
-        st.stop()
-
-    cookie_cfg = st.secrets.get("cookie", {
-        "name": "sedori_tool_auth",
-        "key": "sedori_secret_key_2026",
-        "expiry_days": 30,
-    })
-
-    authenticator = stauth.Authenticate(
-        dict(creds),
-        cookie_cfg.get("name", "sedori_tool_auth"),
-        cookie_cfg.get("key", "sedori_secret_key_2026"),
-        cookie_cfg.get("expiry_days", 30),
-    )
-
-    # ログインUI
-    if st.session_state.get("authentication_status") is not True:
-        st.markdown("""
+    st.markdown("""
 <style>
- .block-container { max-width: 380px !important; margin: 2rem auto !important; padding: 1.5rem !important; }
+ .block-container { max-width: 400px !important; margin: 3rem auto !important; padding: 1.5rem !important; }
 </style>
 """, unsafe_allow_html=True)
-        st.markdown("""
-<div style="text-align:center;margin-bottom:2rem">
- <div style="font-size:3rem">💰</div>
- <h1 style="font-size:1.4rem;font-weight:900;margin:0.3rem 0">せどり目利きツール</h1>
- <p style="font-size:0.85rem;color:#888">プレミアムプランへようこそ</p>
-</div>
-""", unsafe_allow_html=True)
 
-    try:
-        authenticator.login(location="main", fields={
-            "Form name": "ログイン",
-            "Username": "ユーザー名",
-            "Password": "パスワード",
-            "Login": "ログインする",
-        })
-    except Exception:
-        authenticator.login()
-
-    status = st.session_state.get("authentication_status")
-
-    if status is True:
-        # ── ログイン成功：user_idをusernameに設定してアプリを表示 ──
-        st.session_state.user_id = st.session_state.get("username", "default")
-        with st.sidebar:
-            st.markdown(f"👤 **{st.session_state.get('name', '')}** さん")
-            authenticator.logout("ログアウト")
-        _run_pages()
-
-    elif status is False:
-        st.error("ユーザー名またはパスワードが違います")
-        _show_contact()
-
-    else:
-        st.info("ユーザー名とパスワードを入力してください")
-        _show_contact()
-
-
-def _show_contact():
     st.markdown("""
-<div style="background:#f8f9fa;border-radius:12px;padding:1rem;margin-top:1rem;font-size:0.85rem;color:#555;text-align:center">
-  ご購入後にお送りしたIDとパスワードでログインしてください。<br>
-  ご不明な点はTikTok DMにてお問い合わせください。
+<div style="text-align:center;margin-bottom:2rem">
+ <div style="font-size:3.5rem">💰</div>
+ <h1 style="font-size:1.5rem;font-weight:900;margin:0.4rem 0 0.2rem">せどり目利きツール</h1>
+ <p style="font-size:0.85rem;color:#888;margin:0">テスター限定ベータ版</p>
 </div>
 """, unsafe_allow_html=True)
 
+    st.markdown("#### あなたのニックネームを入力してください")
+    st.caption("メモ帳・検索履歴をブラウザをまたいで保存するために使います。\nすでに使ったことがある方は同じニックネームを入力すると前回の続きから使えます。")
 
+    with st.form("nickname_form"):
+        nickname = st.text_input(
+            "ニックネーム",
+            placeholder="例：たろう、せどりマスターなど",
+            label_visibility="collapsed",
+        )
+        submitted = st.form_submit_button("はじめる 🚀", type="primary", use_container_width=True)
+
+    if submitted:
+        name = nickname.strip()
+        if name:
+            st.session_state.user_id = name
+            st.rerun()
+        else:
+            st.warning("ニックネームを入力してください")
+
+    st.markdown("""
+<div style="background:#fff8e1;border-radius:10px;padding:0.8rem 1rem;font-size:0.82rem;color:#7d6608;margin-top:1rem">
+ ⚠️ <strong>注意</strong>：同じニックネームを使う人がいると、メモが混ざる可能性があります。<br>
+ できるだけ他の人と被らないニックネームを使ってください。
+</div>
+""", unsafe_allow_html=True)
+
+    st.stop()
+
+# ── REQUIRE_LOGIN フラグをページ間で共有 ─────────────────────
+_require_login = str(st.secrets.get("REQUIRE_LOGIN", "false")).lower() == "true"
+st.session_state["_require_login"] = _require_login
+
+# ── 認証状態に応じて user_id を同期 ──────────────────────────
+if _require_login:
+    if st.session_state.get("authentication_status") is True:
+        # ── ログイン済み：user_id をユーザー名に設定 ──────────
+        st.session_state.user_id = st.session_state.get("username", "default")
+
+        with st.sidebar:
+            name = st.session_state.get("name") or st.session_state.user_id
+            st.markdown(
+                f'<div style="font-size:0.9rem;padding:0.4rem 0">👤 <strong>{name}</strong> さん</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("ログアウト", key="_sidebar_logout", use_container_width=True):
+                # cookie を削除してセッションをリセット
+                try:
+                    import streamlit_authenticator as stauth
+
+                    cookie_cfg = st.secrets.get(
+                        "cookie",
+                        {"name": "sedori_tool_auth", "key": "sedori_secret_key_2026", "expiry_days": 30},
+                    )
+                    _auth = stauth.Authenticate(
+                        dict(st.secrets.get("credentials", {})),
+                        cookie_cfg.get("name", "sedori_tool_auth"),
+                        cookie_cfg.get("key", "sedori_secret_key_2026"),
+                        int(cookie_cfg.get("expiry_days", 30)),
+                    )
+                    _auth.logout(location="unrendered")
+                except Exception:
+                    pass
+                for _k in ("authentication_status", "username", "name", "logout"):
+                    st.session_state.pop(_k, None)
+                st.session_state.user_id = "default"
+                st.rerun()
+    else:
+        # ── 未ログイン：user_id は常に default ──────────────────
+        st.session_state.user_id = "default"
+        with st.sidebar:
+            st.caption("🔒 メモ帳はプレミアム限定")
+
+else:
+    # ── ログイン不要モード：サイドバーにニックネームを表示 ──────
+    with st.sidebar:
+        st.caption(f"👤 {st.session_state.user_id} さん")
+        if st.button("別の名前で使う", key="_change_nick", use_container_width=True):
+            for _k in list(st.session_state.keys()):
+                del st.session_state[_k]
+            st.rerun()
+
+
+# ── ページナビゲーション（常に全ページを表示）─────────────────
 def _run_pages():
-    """ページナビゲーションを実行する（認証不要モードでも使用）"""
     pg = st.navigation([
         st.Page("pages/home.py",                    title="ホーム",         icon="💰", default=True),
         st.Page("pages/1_📷_バーコード検索.py",      title="バーコード検索", icon="📷"),
@@ -109,10 +121,4 @@ def _run_pages():
     pg.run()
 
 
-# ── メイン処理 ─────────────────────────────────────────
-require_login = str(st.secrets.get("REQUIRE_LOGIN", "false")).lower() == "true"
-
-if require_login:
-    _run_with_auth()
-else:
-    _run_pages()
+_run_pages()

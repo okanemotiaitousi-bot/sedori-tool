@@ -170,8 +170,11 @@ def _memo_to_row(m: dict, user_id: str) -> list:
 def load_memo_list(user_id: str = DEFAULT_USER) -> list:
     """
     スプレッドシートから指定ユーザーのメモリストを読み込む。
+    未ログイン（default）はスプレッドシートを参照せず空リストを返す。
     失敗時は空リストを返す。
     """
+    if user_id == DEFAULT_USER:
+        return []
     try:
         sheet = _get_sheet(0)
         records = sheet.get_all_records()
@@ -194,6 +197,7 @@ def load_memo_list(user_id: str = DEFAULT_USER) -> list:
 def save_memo_list(memo_list: list, user_id: str = DEFAULT_USER) -> bool:
     """
     指定ユーザーのメモリストを安全に保存する。
+    未ログイン（default）はスキップして True を返す。
 
     手順:
     1. シートの全行を読み込む
@@ -201,6 +205,8 @@ def save_memo_list(memo_list: list, user_id: str = DEFAULT_USER) -> bool:
     3. 自ユーザーの行を memo_list の内容で差し替え
     4. batch_update で全行を上書き（clear() を使わない）
     """
+    if user_id == DEFAULT_USER:
+        return True
     try:
         sheet = _get_sheet(0)
 
@@ -246,7 +252,9 @@ def _history_to_row(h: dict, user_id: str) -> list:
 
 
 def load_search_history(user_id: str = DEFAULT_USER) -> list:
-    """指定ユーザーの検索履歴を読み込む。失敗時は空リストを返す。"""
+    """指定ユーザーの検索履歴を読み込む。未ログイン（default）は空リストを返す。"""
+    if user_id == DEFAULT_USER:
+        return []
     try:
         sheet = _get_sheet(1)
         records = sheet.get_all_records()
@@ -276,7 +284,9 @@ def load_search_history(user_id: str = DEFAULT_USER) -> list:
 
 
 def save_search_history(history: list, user_id: str = DEFAULT_USER) -> bool:
-    """指定ユーザーの検索履歴を安全に保存する（最大30件）。"""
+    """指定ユーザーの検索履歴を安全に保存する（最大30件）。未ログイン（default）はスキップ。"""
+    if user_id == DEFAULT_USER:
+        return True
     try:
         sheet = _get_sheet(1)
 

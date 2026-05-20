@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from PIL import Image
 from datetime import datetime
-from utils import show_auction_prices, generate_listing_text
+from utils import show_auction_prices, generate_listing_text, show_paywall_dialog
 import sheets as gs
 
 st.markdown("""
@@ -260,10 +260,15 @@ elif st.session_state.barcode_screen == "result":
         st.session_state.memo_list = []
     jan = st.session_state.barcode_jan
     _uid = st.session_state.get("user_id", "default")
+    _need_paywall = st.session_state.get("_require_login", False) and _uid == "default"
     already = any(m.get("jan") == jan for m in st.session_state.memo_list)
     if already:
         st.info("📝 メモ帳に保存済み")
         st.page_link("pages/5_📝_メモ帳.py", label="📋 メモ帳を開く", use_container_width=True)
+    elif _need_paywall:
+        # ── 未ログイン時：ボタンを押したらペイウォールポップアップ ──
+        if st.button("📝 仕入れ候補にメモ", key="btn_add_memo", use_container_width=True):
+            show_paywall_dialog()
     else:
         if st.button("📝 仕入れ候補にメモ", key="btn_add_memo"):
             st.session_state.memo_list.append({
