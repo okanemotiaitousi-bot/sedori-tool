@@ -110,9 +110,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── 検索履歴のロード（セッション初回のみ）────────────────
+_uid = st.session_state.get("user_id", "default")
 if "search_history" not in st.session_state:
     if gs.is_enabled():
-        loaded_h = gs.load_search_history()
+        loaded_h = gs.load_search_history(_uid)
         st.session_state.search_history = loaded_h
     else:
         st.session_state.search_history = []

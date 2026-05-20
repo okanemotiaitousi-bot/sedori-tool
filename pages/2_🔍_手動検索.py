@@ -5,9 +5,10 @@ from utils import show_auction_prices
 import sheets as gs
 
 # ── 検索履歴のロード（セッション初回のみ）────────────────
+_uid = st.session_state.get("user_id", "default")
 if "search_history" not in st.session_state:
     if gs.is_enabled():
-        st.session_state.search_history = gs.load_search_history()
+        st.session_state.search_history = gs.load_search_history(_uid)
     else:
         st.session_state.search_history = []
 
@@ -105,7 +106,7 @@ if st.session_state.get("search_keyword") and st.session_state.get("search_resul
                         })
                 st.session_state.search_history = new_history[-30:]
                 if gs.is_enabled():
-                    gs.save_search_history(st.session_state.search_history)
+                    gs.save_search_history(st.session_state.search_history, _uid)
 
         except Exception as e:
             st.error(f"通信エラー：{e}")
@@ -185,9 +186,10 @@ if hits:
                                 "time": datetime.now().strftime("%H:%M"),
                                 "status": "候補",
                                 "ship_name": ship_name,
+                                "user_id": _uid,
                             })
                             if gs.is_enabled():
-                                gs.save_memo_list(st.session_state.memo_list)
+                                gs.save_memo_list(st.session_state.memo_list, _uid)
                             st.rerun()
 
 

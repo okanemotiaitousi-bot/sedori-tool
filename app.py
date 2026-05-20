@@ -10,6 +10,10 @@ st.set_page_config(
 if "search_history" not in st.session_state:
     st.session_state.search_history = []
 
+# ログインしていない場合はデフォルトユーザー
+if "user_id" not in st.session_state:
+    st.session_state.user_id = "default"
+
 # ── ログイン機能（REQUIRE_LOGIN=true のときのみ有効）─────
 def _run_with_auth():
     """認証ありでアプリを実行する"""
@@ -67,7 +71,8 @@ def _run_with_auth():
     status = st.session_state.get("authentication_status")
 
     if status is True:
-        # ── ログイン成功：通常のアプリを表示 ──
+        # ── ログイン成功：user_idをusernameに設定してアプリを表示 ──
+        st.session_state.user_id = st.session_state.get("username", "default")
         with st.sidebar:
             st.markdown(f"👤 **{st.session_state.get('name', '')}** さん")
             authenticator.logout("ログアウト")

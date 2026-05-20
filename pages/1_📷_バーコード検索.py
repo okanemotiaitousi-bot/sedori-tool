@@ -227,7 +227,7 @@ elif st.session_state.barcode_screen == "result":
         })
         st.session_state.search_history = history[-30:]
         if gs.is_enabled():
-            gs.save_search_history(st.session_state.search_history)
+            gs.save_search_history(st.session_state.search_history, st.session_state.get("user_id", "default"))
 
     if cost == 0:
         st.info("仕入れ値を入力すると判定が更新されます（0円のまま計算することも可能です）")
@@ -259,6 +259,7 @@ elif st.session_state.barcode_screen == "result":
     if "memo_list" not in st.session_state:
         st.session_state.memo_list = []
     jan = st.session_state.barcode_jan
+    _uid = st.session_state.get("user_id", "default")
     already = any(m.get("jan") == jan for m in st.session_state.memo_list)
     if already:
         st.info("📝 メモ帳に保存済み")
@@ -275,9 +276,10 @@ elif st.session_state.barcode_screen == "result":
                 "time": datetime.now().strftime("%H:%M"),
                 "status": "候補",
                 "ship_name": ship_name,
+                "user_id": _uid,
             })
             if gs.is_enabled():
-                gs.save_memo_list(st.session_state.memo_list)
+                gs.save_memo_list(st.session_state.memo_list, _uid)
             st.rerun()
 
     st.markdown("")

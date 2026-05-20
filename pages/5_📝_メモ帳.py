@@ -57,11 +57,14 @@ st.title("📝 仕入れメモ帳")
 st.caption("仕入れ候補 → 出品中 → 売却済み の流れで管理できます")
 st.divider()
 
+# ── ユーザーID取得 ────────────────────────────────────────
+_uid = st.session_state.get("user_id", "default")
+
 # ── 保存ヘルパー ─────────────────────────────────────────
 def _save():
     """変更後に呼ぶ。Sheets が有効なら保存する。"""
     if gs.is_enabled():
-        ok = gs.save_memo_list(st.session_state.memo_list)
+        ok = gs.save_memo_list(st.session_state.memo_list, _uid)
         if not ok:
             st.warning("⚠️ スプレッドシートへの保存に失敗しました")
 
@@ -74,7 +77,7 @@ if "memo_list" not in st.session_state:
 if "sheets_loaded" not in st.session_state:
     if gs.is_enabled():
         with st.spinner("📂 保存データを読み込み中..."):
-            loaded = gs.load_memo_list()
+            loaded = gs.load_memo_list(_uid)
         # このセッション中に追加された未保存アイテムをマージ
         loaded_keys = {(m["name"], m["jan"]) for m in loaded}
         new_items   = [m for m in st.session_state.memo_list
