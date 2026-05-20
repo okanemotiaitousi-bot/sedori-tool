@@ -220,18 +220,23 @@ with tab_text:
         key="description_input",
     )
 
-    if description_input and description_input != st.session_state.last_description:
-        with st.spinner("🤖 AIが状態を判定中..."):
-            result = gemini_text_guess(description_input)
-            if result:
-                st.session_state.auto_condition = result
-                st.session_state.used_ai = True
-            else:
-                auto_kw = keyword_guess(description_input)
-                st.session_state.auto_condition = auto_kw
-                st.session_state.used_ai = False
-            st.session_state.ai_method = "text"
-        st.session_state.last_description = description_input
+    # ボタン押下時のみ API を呼ぶ（text_area のフォーカス外れによる連打を防止）
+    if st.button("🤖 AIで状態を判定する", key="judge_text_btn",
+                 type="primary", use_container_width=True):
+        if description_input.strip():
+            with st.spinner("🤖 AIが状態を判定中..."):
+                result = gemini_text_guess(description_input)
+                if result:
+                    st.session_state.auto_condition = result
+                    st.session_state.used_ai = True
+                else:
+                    auto_kw = keyword_guess(description_input)
+                    st.session_state.auto_condition = auto_kw
+                    st.session_state.used_ai = False
+                st.session_state.ai_method = "text"
+            st.session_state.last_description = description_input
+        else:
+            st.warning("説明文を入力してから判定ボタンを押してください")
 
     if description_input:
         if st.session_state.auto_condition and st.session_state.ai_method == "text":

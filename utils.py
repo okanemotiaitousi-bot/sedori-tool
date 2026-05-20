@@ -148,6 +148,7 @@ def generate_listing_text(product_name: str, condition: str, sell_price: int, sh
 
 
 # ── Yahoo!ショッピング最安値取得 ──────────────────────────
+@st.cache_data(ttl=1800)  # 30分キャッシュ：同一クエリの重複リクエストを防ぐ
 def fetch_yahoo_lowest_price(query: str, app_id: str) -> int | None:
     try:
         res = requests.get(
@@ -171,6 +172,7 @@ _HEADERS = {
 }
 
 
+@st.cache_data(ttl=1800)  # 30分キャッシュ：ヤフオクへの重複スクレイピングを防ぐ
 def _scrape_auction_prices(query: str, results: int = 20) -> dict | None:
     """
     Yahoo!オークションの落札済み検索ページをスクレイピングして
@@ -249,6 +251,9 @@ def show_auction_prices(product_name: str, cache_key: str):
         f"https://auctions.yahoo.co.jp/search/search?p={q}&auccat=0&s1=end&o1=d&mode=2"
     )
 
+    # _scrape_auction_prices は @st.cache_data で30分キャッシュ済み。
+    # session_state への二重保存は不要になったが、3_状態別売値計算.py が
+    # st.session_state[f"_auction_{cache_key}"] を参照しているため互換のため残す。
     field = f"_auction_{cache_key}"
 
     if field not in st.session_state:

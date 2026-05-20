@@ -226,8 +226,12 @@ elif st.session_state.barcode_screen == "result":
             "date": datetime.now().strftime("%Y-%m-%d"),
         })
         st.session_state.search_history = history[-30:]
-        if gs.is_enabled():
+        # (jan, cost) の組み合わせが変わったときだけ Sheets に保存する。
+        # rerun のたびに save_search_history が走るのを防ぐ。
+        _sig = f"{jan}_{cost}"
+        if gs.is_enabled() and st.session_state.get("_barcode_hist_sig") != _sig:
             gs.save_search_history(st.session_state.search_history, st.session_state.get("user_id", "default"))
+            st.session_state["_barcode_hist_sig"] = _sig
 
     if cost == 0:
         st.info("仕入れ値を入力すると判定が更新されます（0円のまま計算することも可能です）")
