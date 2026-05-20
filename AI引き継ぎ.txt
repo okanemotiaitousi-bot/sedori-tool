@@ -1,5 +1,6 @@
 ================================================================
-【AI引き継ぎ情報】せどり目利きツール
+【AI引き継ぎ情報】せどり目利きツール（最新版）
+最終更新：2026年5月21日
 ================================================================
 
 ■ 開発者について
@@ -10,33 +11,57 @@
 ・ローカル：C:\Users\ハイパーＸ\Desktop\メルカリ　ツール
 ・ターミナル：PowerShell（&&不可、;を使う）
 
+■ 集客方針
+・LINEオープンチャット（既存せどりコミュ）のオーナーにDMしてテスター募集
+・いきなり宣伝せずオーナーに許可をもらってから紹介する方針
+・テスター確保後に月額500〜980円で有料化予定
+・Twitter/X #せどりタグ・TikTok（サブ）でも集客予定
+
 ■ 使用技術
 ・Streamlit（Pythonベース・Streamlit Cloudで無料ホスティング）
-・Yahoo!ショッピングAPI（商品検索・最安値取得）
-・Yahoo!オークション スクレイピング（落札相場取得・APIは403のためBS4で代替）
+・Yahoo!ショッピングAPI（商品検索・最安値取得）※正常動作確認済み
+・Yahoo!オークション スクレイピング（BeautifulSoup4）
+  ※ヤフオクAPIは両方403（App IDにオークション権限なし）のためスクレイピングで代替
+  ※落札済みページ(mode=2)から平均・最低・最高・直近5件を取得・表示
 ・Google Gemini API gemini-1.5-flash（AI状態判定・写真判定・出品文生成）
 ・Google Sheets API（メモ帳・検索履歴の永続化）
-・streamlit-authenticator（ログイン機能・未使用だがコード実装済み）
+・streamlit-authenticator（ログイン機能・コード実装済み・現在は無効化中）
 
-■ Streamlit Secretsに登録済みのキー（値はStreamlit Cloudのみで管理・ここには書かない）
+■ Streamlit Secretsに登録済みのキー（値はStreamlit Cloudのみで管理）
 YAHOO_APP_ID = "..."
 GEMINI_API_KEY = "..."
 SPREADSHEET_ID = "..."
 [gcp_service_account] → Streamlit CloudのSecretsにJSONを登録済み
-※ REQUIRE_LOGIN = "true" にするとログイン必須モードになる（現在は未設定＝無料公開中）
+  client_email: id-819@cogent-osprey-496809-u0.iam.gserviceaccount.com
+REQUIRE_LOGIN = "true" にするとログイン必須モードになる（現在は未設定＝無料公開中）
+
+■ 有料化の手順（準備完了済み）
+1. Stripeアカウント作成 → Payment Link発行
+2. lp/index.html の「STRIPE_PAYMENT_LINK_HERE」2箇所を差し替え
+3. GitHub PagesでLP公開（lp/index.htmlがあるのでそのまま使える）
+4. Streamlit Secretsに以下を追加するだけで有料化完了：
+   REQUIRE_LOGIN = "true"
+   [credentials.usernames.ユーザー名]
+   name = "表示名"
+   password = "bcryptハッシュ化済みパスワード"
+   email = "メールアドレス"
+   [cookie]
+   name = "sedori_tool_auth"
+   key = "sedori_secret_key_2026"
+   expiry_days = 30
 
 ================================================================
 ■ ファイル構成
 ================================================================
 
-app.py               エントリーポイント・ページナビゲーション・ログイン制御
-utils.py             共通関数（ヤフオク相場・Yahoo最安値・Gemini出品文）
-sheets.py            Googleスプレッドシート連携（メモ帳・検索履歴）
+app.py               エントリーポイント・ページナビ・ログイン制御・user_id設定
+utils.py             共通関数（ヤフオク相場スクレイピング・Yahoo最安値・Gemini出品文）
+sheets.py            Googleスプレッドシート連携（マルチユーザー対応版）
 pages/home.py        ホーム画面
 pages/1_📷_バーコード検索.py
 pages/2_🔍_手動検索.py
 pages/3_🏷️_状態別売値計算.py
-pages/4_📋_免責事項.py    ← 利用規約・プライバシーポリシー（タブ形式）
+pages/4_📋_免責事項.py    利用規約・プライバシーポリシー（タブ形式・課金対応済み）
 pages/5_📝_メモ帳.py
 lp/index.html        Stripe決済LP（STRIPE_PAYMENT_LINK_HEREを差し替えて使う）
 requirements.txt
@@ -58,9 +83,9 @@ packages.txt
 【2. バーコード検索（pages/1_📷_バーコード検索.py）】
 - 画面1（scan）：カメラ撮影（pyzbar）or JANコード手打ち
 - 画面2（result）：Yahoo!ショッピングAPI → 商品情報・利益判定
-  ・推定売値 = Yahoo価格 × 0.62（自動）
+  ・推定売値 = Yahoo価格 × 0.62
   ・判定バナー：✅買い／🤔検討／❌やめとこう
-  ・ヤフオク落札相場（Expander）
+  ・ヤフオク落札相場（スクレイピング・Expander内）
   ・仕入れ候補にメモボタン → 保存済みなら「メモ帳を開く」
 - 画面3（detail）：詳細計算
   ・プラットフォーム別利益（メルカリ10%・ラクマ6.6%・PayPay5%・ヤフオク8.8%）
@@ -75,444 +100,51 @@ packages.txt
 
 【4. 状態別売値計算（pages/3_🏷️_状態別売値計算.py）】
 - 商品名入力 + 🔍価格取得ボタン（Yahoo!最安値自動入力）
-- 仕入れ値・配送方法の入力
-- 状態判定タブ①：📷写真で判定（Gemini Visionで自動判定）
+- 状態判定タブ①：📷写真で判定（Gemini Vision）
 - 状態判定タブ②：📝説明文で判定（Geminiテキスト or キーワードフォールバック）
-- 状態係数：未使用0.80・良い0.65・可0.45・不可0.25（Yahoo価格に掛ける）
-- 計算結果：推奨売値・利益・利益率・買い判定
-- ヤフオク落札相場（ヤフオク平均 vs Yahoo価格の比較コメント付き）
-- AI出品文生成（作り直しボタン付き）
-- メルカリ出品コメント例テンプレート
+- 状態係数：未使用0.80・良い0.65・可0.45・不可0.25
+- 計算結果・AI出品文生成・メルカリ出品コメント例
 
 【5. 仕入れメモ帳（pages/5_📝_メモ帳.py）】
-- タブ①「仕入れ候補」：検索から追加した商品一覧
-  ・「🏪出品する」→出品中タブへ移動
-  ・AI出品文生成（Expander内）
-  ・個別削除（2段階確認）
-- タブ②「出品中」：出品管理
-  ・「✅売れた！」→実際の売値・配送入力→売却確定
-  ・売却確定後に「🎉 ¥○○の利益！」フラッシュバナー
-  ・「←候補に戻す」ボタン
-- タブ③「売却済み」：売却実績（実際の利益・予想との差額表示）
-- Googleスプレッドシートで永続化（ページを閉じてもデータが残る）
+- タブ①「仕入れ候補」→タブ②「出品中」→タブ③「売却済み」のフロー管理
+- 売却確定後に「🎉 ¥○○の利益！」フラッシュバナー
+- Googleスプレッドシートで永続化（user_idで各ユーザーのデータを分離）
 
 【6. 利用規約・プライバシーポリシー（pages/4_📋_免責事項.py）】
-- タブ①「利用規約」：全6条（有料プラン条項含む・Stripe記載済み）
+- タブ①「利用規約」：全6条（有料プラン条項・Stripe記載済み）
 - タブ②「プライバシーポリシー」：全5条（収集情報・外部サービス一覧）
 
 ================================================================
-■ 最新コード（全ファイル）
+■ sheets.py の設計（重要・マルチユーザー対応済み）
 ================================================================
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【app.py】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-import streamlit as st
+【設計方針】
+1. user_id列でユーザーを分離
+   - 各行にuser_idを持たせ、ロード時は自分の行だけ取得
+   - 保存時は「他ユーザーの行はそのまま・自分の行だけ差し替え」
+   - 既存データ（user_id列なし）はuser_id="default"として後方互換で読み込む
 
-st.set_page_config(
-    page_title="せどり目利きツール",
-    page_icon="💰",
-    layout="centered",
-)
+2. sheet.clear()を完全廃止
+   - batch_updateで全行上書き
+   - clear()とupdate()の間にデータが消える瞬間をゼロにした
 
-if "search_history" not in st.session_state:
-    st.session_state.search_history = []
+3. item_id（UUID）で各レコードを一意に識別
+   - 将来的に行単位の更新・削除が可能な構造
 
-def _run_with_auth():
-    try:
-        import streamlit_authenticator as stauth
-    except ImportError:
-        st.error("streamlit-authenticator が必要です")
-        st.stop()
+4. 指数バックオフ付きリトライ（最大3回）
+   - 429 Quota超過は15秒待ち
+   - その他エラーは2→4→8秒
 
-    creds = st.secrets.get("credentials", {})
-    if not creds:
-        st.error("Secretsに credentials が設定されていません。")
-        st.stop()
+【user_idの流れ】
+- app.py起動時：st.session_state.user_id = "default"
+- ログイン成功時：st.session_state.user_id = username（認証済みユーザー名）
+- 各ページ：_uid = st.session_state.get("user_id", "default")
+- sheets関数呼び出し：gs.load_memo_list(_uid) / gs.save_memo_list(..., _uid) など
 
-    cookie_cfg = st.secrets.get("cookie", {
-        "name": "sedori_tool_auth",
-        "key": "sedori_secret_key_2026",
-        "expiry_days": 30,
-    })
+================================================================
+■ requirements.txt（現在）
+================================================================
 
-    authenticator = stauth.Authenticate(
-        dict(creds),
-        cookie_cfg.get("name", "sedori_tool_auth"),
-        cookie_cfg.get("key", "sedori_secret_key_2026"),
-        cookie_cfg.get("expiry_days", 30),
-    )
-
-    if st.session_state.get("authentication_status") is not True:
-        st.markdown("""
-<style>
- .block-container { max-width: 380px !important; margin: 2rem auto !important; padding: 1.5rem !important; }
-</style>
-""", unsafe_allow_html=True)
-        st.markdown("""
-<div style="text-align:center;margin-bottom:2rem">
- <div style="font-size:3rem">💰</div>
- <h1 style="font-size:1.4rem;font-weight:900;margin:0.3rem 0">せどり目利きツール</h1>
- <p style="font-size:0.85rem;color:#888">プレミアムプランへようこそ</p>
-</div>
-""", unsafe_allow_html=True)
-
-    try:
-        authenticator.login(location="main", fields={
-            "Form name": "ログイン",
-            "Username": "ユーザー名",
-            "Password": "パスワード",
-            "Login": "ログインする",
-        })
-    except Exception:
-        authenticator.login()
-
-    status = st.session_state.get("authentication_status")
-
-    if status is True:
-        with st.sidebar:
-            st.markdown(f"👤 **{st.session_state.get('name', '')}** さん")
-            authenticator.logout("ログアウト")
-        _run_pages()
-    elif status is False:
-        st.error("ユーザー名またはパスワードが違います")
-        st.markdown("""
-<div style="background:#f8f9fa;border-radius:12px;padding:1rem;margin-top:1rem;font-size:0.85rem;color:#555;text-align:center">
-  ご購入後にお送りしたIDとパスワードでログインしてください。
-</div>
-""", unsafe_allow_html=True)
-    else:
-        st.info("ユーザー名とパスワードを入力してください")
-
-
-def _run_pages():
-    pg = st.navigation([
-        st.Page("pages/home.py",                    title="ホーム",         icon="💰", default=True),
-        st.Page("pages/1_📷_バーコード検索.py",      title="バーコード検索", icon="📷"),
-        st.Page("pages/2_🔍_手動検索.py",            title="手動検索",       icon="🔍"),
-        st.Page("pages/3_🏷️_状態別売値計算.py",     title="状態別売値計算", icon="🏷️"),
-        st.Page("pages/5_📝_メモ帳.py",              title="仕入れメモ帳",   icon="📝"),
-        st.Page("pages/4_📋_免責事項.py",            title="免責事項",       icon="📋"),
-    ])
-    pg.run()
-
-
-require_login = str(st.secrets.get("REQUIRE_LOGIN", "false")).lower() == "true"
-if require_login:
-    _run_with_auth()
-else:
-    _run_pages()
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【utils.py】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-共通ユーティリティ
-- ヤフオク落札相場取得・表示（スクレイピング）
-- Yahoo!ショッピング最安値取得
-- Gemini 出品文自動生成
-"""
-import re
-import urllib.parse
-import requests
-import streamlit as st
-
-
-def generate_listing_text(product_name: str, condition: str, sell_price: int, ship_name: str) -> str:
-    import google.generativeai as genai
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    prompt = f"""メルカリに出品するための商品説明文を作成してください。
-商品名: {product_name}
-状態: {condition}
-販売価格: ¥{sell_price:,}
-配送方法: {ship_name}
-条件：
-- ですます調で自然な文体
-- 状態を具体的に説明（{condition}の場合の一般的な特徴を書く）
-- 購入者が安心できる丁寧な内容
-- 絵文字を適度に使う
-- 400文字以内
-- 最後は「よろしくお願いします🙇」で締める
-出品文だけを出力してください。"""
-    response = model.generate_content(prompt)
-    return response.text.strip()
-
-
-def fetch_yahoo_lowest_price(query: str, app_id: str) -> int | None:
-    try:
-        res = requests.get(
-            "https://shopping.yahooapis.jp/ShoppingWebService/V3/itemSearch",
-            params={"appid": app_id, "query": query, "results": 10, "sort": "-score"},
-            timeout=5,
-        )
-        hits = res.json().get("hits", [])
-        prices = [int(h["price"]) for h in hits if h.get("price") and int(h["price"]) > 0]
-        return min(prices) if prices else None
-    except Exception:
-        return None
-
-
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1"
-    )
-}
-
-
-def _scrape_auction_prices(query: str, results: int = 20) -> dict | None:
-    """Yahoo!オークションの落札済みページをスクレイピングして相場データを返す"""
-    try:
-        from bs4 import BeautifulSoup
-    except ImportError:
-        return None
-
-    url = (
-        "https://auctions.yahoo.co.jp/search/search"
-        f"?p={urllib.parse.quote(query)}&auccat=0&s1=end&o1=d&mode=2"
-    )
-    try:
-        res = requests.get(url, headers=_HEADERS, timeout=10)
-        if res.status_code != 200:
-            return None
-    except Exception:
-        return None
-
-    soup = BeautifulSoup(res.text, "html.parser")
-    li_items = soup.find_all("li", class_="Item")
-
-    parsed, prices = [], []
-    for li in li_items:
-        if len(parsed) >= results:
-            break
-        try:
-            a = li.find("a", class_="Item__imageLink")
-            if not a:
-                continue
-            price_raw = a.get("data-auction-price", "").strip()
-            if not price_raw:
-                continue
-            price = int(price_raw)
-            if price <= 0:
-                continue
-            title_el = (
-                li.find("p", class_="Item__title")
-                or li.find("h3", class_="Item__title")
-                or li.find(class_=lambda c: c and "title" in c.lower())
-            )
-            title = title_el.get_text(strip=True) if title_el else ""
-            parsed.append({"title": title, "price": price, "end": ""})
-            prices.append(price)
-        except Exception:
-            continue
-
-    if not prices:
-        return None
-
-    return {
-        "avg": round(sum(prices) / len(prices)),
-        "min": min(prices),
-        "max": max(prices),
-        "count": len(prices),
-        "items": parsed[:5],
-        "completed": True,
-        "source": "scrape",
-    }
-
-
-def show_auction_prices(product_name: str, cache_key: str):
-    q = urllib.parse.quote(product_name)
-    completed_url = (
-        f"https://auctions.yahoo.co.jp/search/search?p={q}&auccat=0&s1=end&o1=d&mode=2"
-    )
-    field = f"_auction_{cache_key}"
-
-    if field not in st.session_state:
-        with st.spinner("ヤフオク落札相場を取得中..."):
-            st.session_state[field] = _scrape_auction_prices(product_name)
-
-    data = st.session_state[field]
-
-    if data is not None:
-        c1, c2, c3 = st.columns(3)
-        c1.metric("平均落札", f"¥{data['avg']:,}")
-        c2.metric("最低",     f"¥{data['min']:,}")
-        c3.metric("最高",     f"¥{data['max']:,}")
-        st.caption(f"直近 {data['count']} 件の落札価格（ヤフオク）")
-        if data["items"]:
-            for item in data["items"]:
-                c1, c2 = st.columns([4, 1])
-                c1.caption(item["title"][:36] if item["title"] else "（タイトル取得不可）")
-                c2.caption(f"¥{item['price']:,}")
-        st.markdown(
-            f'<a href="{completed_url}" target="_blank" '
-            f'style="font-size:0.82rem;color:#888">🔗 ヤフオクで詳細を確認する →</a>',
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            f"""
-<div style="background:#f8f9fa;border-radius:12px;padding:1rem 1.2rem;margin:0.3rem 0">
-  <div style="font-size:0.85rem;color:#555;margin-bottom:0.7rem">
-    📦 <strong>ヤフオク落札相場</strong>
-  </div>
-  <a href="{completed_url}" target="_blank"
-     style="display:block;background:#ff6b35;color:white;padding:0.55rem 1rem;
-            border-radius:10px;text-decoration:none;font-size:0.9rem;
-            font-weight:bold;text-align:center">
-    🏷️ 落札済み価格を確認する →
-  </a>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【sheets.py】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-Google スプレッドシート連携
-・sheet1（メモ帳）: 仕入れメモリストを永続化
-・sheet2（検索履歴）: 検索履歴・統計を永続化
-Streamlit Secrets に gcp_service_account と SPREADSHEET_ID が
-設定されていない場合は何もしない（session_state のみで動く）。
-"""
-import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
-
-SHEET_HEADERS = [
-    "name", "jan", "cost", "sell", "profit", "profit_rate",
-    "time", "status", "listed_time", "ship_name",
-    "actual_sell", "actual_profit", "actual_rate", "sold_time",
-]
-HISTORY_HEADERS = ["name", "jan", "cost", "sell", "ship_cost", "profit", "profit_rate", "time", "date"]
-_SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
-
-def is_enabled() -> bool:
-    try:
-        _ = st.secrets["gcp_service_account"]
-        _ = st.secrets["SPREADSHEET_ID"]
-        return True
-    except Exception:
-        return False
-
-@st.cache_resource
-def _get_client():
-    creds = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"], scopes=_SCOPES,
-    )
-    return gspread.authorize(creds)
-
-def _get_sheet():
-    client = _get_client()
-    return client.open_by_key(st.secrets["SPREADSHEET_ID"]).sheet1
-
-def _get_history_sheet():
-    client = _get_client()
-    wb = client.open_by_key(st.secrets["SPREADSHEET_ID"])
-    sheets = wb.worksheets()
-    if len(sheets) >= 2:
-        return sheets[1]
-    return wb.add_worksheet(title="検索履歴", rows=200, cols=len(HISTORY_HEADERS))
-
-def load_memo_list() -> list:
-    try:
-        sheet = _get_sheet()
-        records = sheet.get_all_records()
-        result = []
-        for r in records:
-            name = str(r.get("name", "")).strip()
-            if not name:
-                continue
-            result.append({
-                "name":          name,
-                "jan":           str(r.get("jan",   "")),
-                "cost":          int(r.get("cost",   0) or 0),
-                "sell":          int(r.get("sell",   0) or 0),
-                "profit":        int(r.get("profit", 0) or 0),
-                "profit_rate":   float(r.get("profit_rate", 0) or 0),
-                "time":          str(r.get("time",   "")),
-                "status":        str(r.get("status", "候補")) or "候補",
-                "listed_time":   str(r.get("listed_time",   "")),
-                "ship_name":     str(r.get("ship_name",     "")),
-                "actual_sell":   int(r.get("actual_sell",   0) or 0),
-                "actual_profit": int(r.get("actual_profit", 0) or 0),
-                "actual_rate":   float(r.get("actual_rate", 0) or 0),
-                "sold_time":     str(r.get("sold_time", "")),
-            })
-        return result
-    except Exception:
-        return []
-
-def save_memo_list(memo_list: list) -> bool:
-    try:
-        sheet = _get_sheet()
-        rows = [SHEET_HEADERS]
-        for m in memo_list:
-            rows.append([
-                m.get("name", ""), m.get("jan", ""), m.get("cost", 0), m.get("sell", 0),
-                m.get("profit", 0), m.get("profit_rate", 0), m.get("time", ""),
-                m.get("status", "候補"), m.get("listed_time", ""), m.get("ship_name", ""),
-                m.get("actual_sell", 0), m.get("actual_profit", 0),
-                m.get("actual_rate", 0), m.get("sold_time", ""),
-            ])
-        sheet.clear()
-        sheet.update(rows, "A1")
-        return True
-    except Exception:
-        return False
-
-def load_search_history() -> list:
-    try:
-        sheet = _get_history_sheet()
-        records = sheet.get_all_records()
-        result = []
-        for r in records:
-            name = str(r.get("name", "")).strip()
-            if not name:
-                continue
-            result.append({
-                "name":        name,
-                "jan":         str(r.get("jan", "")),
-                "cost":        int(r.get("cost", 0) or 0),
-                "sell":        int(r.get("sell", 0) or 0),
-                "ship_cost":   int(r.get("ship_cost", 750) or 750),
-                "profit":      int(r.get("profit", 0) or 0),
-                "profit_rate": float(r.get("profit_rate", 0) or 0),
-                "time":        str(r.get("time", "")),
-                "date":        str(r.get("date", "")),
-            })
-        return result
-    except Exception:
-        return []
-
-def save_search_history(history: list) -> bool:
-    try:
-        sheet = _get_history_sheet()
-        rows = [HISTORY_HEADERS]
-        for h in history[-30:]:
-            rows.append([
-                h.get("name", ""), h.get("jan", ""), h.get("cost", 0),
-                h.get("sell", 0), h.get("ship_cost", 750), h.get("profit", 0),
-                h.get("profit_rate", 0), h.get("time", ""), h.get("date", ""),
-            ])
-        sheet.clear()
-        sheet.update(rows, "A1")
-        return True
-    except Exception:
-        return False
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-【requirements.txt】
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 streamlit
 requests
 pyzbar
@@ -529,12 +161,9 @@ beautifulsoup4
 ■ 現在の既知の問題・制限
 ================================================================
 
-・ヤフオクAPIは両方とも403（App IDにオークション権限なし）
-  → BeautifulSoup4でスクレイピングに切り替え済み（動作確認OK）
-・リアルタイムバーコードスキャン
-  → iPhoneのSafari/ChromeはAppleの制限で不可
-  → Android Chromeなら将来対応可能
-・メルカリの実際の落札価格データは取得不可
+・ヤフオクAPIは両方とも403 → BeautifulSoup4スクレイピングで代替済み（動作確認OK）
+・バーコードスキャン：iPhoneのSafari/ChromeはAppleの制限で不可、Android Chromeは可
+・メルカリの実際の落札価格は取得不可
   → Yahoo!ショッピング価格 × 0.62 で推定中
   → オークファンAPI等は有料のため将来対応予定
 ・session_stateはページリロードで消える
@@ -546,24 +175,40 @@ beautifulsoup4
 
 【すぐできる・無料】
 1. テスター集め（LINEオープンチャットのオーナーにDM）
+   → テスターへの質問3点：①便利だった機能 ②使いにくかった点 ③月額いくらなら払うか
 2. テスターのフィードバックをもとにUI改善
 3. Stripeアカウント作成 → Payment Link発行 → lp/index.htmlのURLを差し替え
-4. GitHub Pagesでlp/index.htmlを公開
-5. Streamlit SecretsにREQUIRE_LOGIN="true"と認証情報を追加 → 有料化完了
+4. GitHub PagesでLP公開
+5. SecretsにREQUIRE_LOGIN="true"と認証情報を追加 → 有料化完了
 
 【お金がかかる・後回し】
 - メルカリ/ヤフオク実売価格（オークファンAPI・月額数千円〜）
 - Amazon価格自動取得（PA-API・アソシエイト審査あり）
-- ログイン・月額課金の本格実装（Stripe Webhookが必要になったら）
 - ネイティブアプリ化（iPhoneバーコード対応したくなったら）
 
 ================================================================
-■ 販売方針
+■ このセッションで行った主な変更（前回の引継ぎからの差分）
 ================================================================
 
-・現在：無料公開中（REQUIRE_LOGIN未設定）
-・テスター確保後：月額500〜980円で有料化予定
-・集客：LINEオープンチャット（既存せどりコミュ）のオーナーにDMしてテスター募集
-・その後：Twitter/X #せどりタグ・Discord・TikTok（サブで）
+① ヤフオクAPI → スクレイピングに切り替え（utils.py）
+   - Yahoo!オークション落札済みページ(mode=2)をBeautifulSoup4でスクレイピング
+   - 平均・最低・最高落札価格＋直近5件のタイトル・価格をアプリ内に表示
+
+② ログイン機能をapp.pyに実装（現在は無効、Secretsで有効化可能）
+   - REQUIRE_LOGIN="true"で即有効化できる設計
+
+③ lp/index.htmlを新規作成（Stripe決済LP）
+   - STRIPE_PAYMENT_LINK_HEREを差し替えるだけで完成
+
+④ 利用規約・プライバシーポリシーを本格化（pages/4_📋_免責事項.py）
+   - タブ形式・有料プラン条項・Stripe記載済み
+
+⑤ sheets.pyをマルチユーザー対応版に全面書き直し
+   - user_id分離・item_id（UUID）・clear()廃止・リトライ処理
+
+⑥ 全ページにuser_id連携を実装
+   - app.py / home.py / メモ帳.py / バーコード検索.py / 手動検索.py
+
+⑦ requirements.txtにstreamlit-authenticator・bcrypt・beautifulsoup4を追加
 
 ================================================================
