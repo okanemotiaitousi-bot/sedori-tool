@@ -122,7 +122,7 @@ if hits:
     st.divider()
     st.markdown(f"**{len(hits)}件の結果**")
 
-    for item in hits:
+    for i, item in enumerate(hits):
         name      = item.get("name", "不明")
         price     = item.get("price", None)
         image_url = item.get("image", {}).get("small", "")
@@ -165,7 +165,7 @@ if hits:
                         st.error("❌ やめとこう")
 
                     with st.expander("📦 ヤフオク落札相場を見る"):
-                        show_auction_prices(name, name[:30])
+                        show_auction_prices(name, f"manual_{i}_{name[:20]}")
 
                     # メモに追加ボタン
                     if "memo_list" not in st.session_state:
@@ -177,10 +177,10 @@ if hits:
                         st.page_link("pages/5_📝_メモ帳.py", label="📋 メモ帳を開く", use_container_width=True)
                     elif _need_paywall:
                         # ── 未ログイン時：ボタンを押したらペイウォールポップアップ ──
-                        if st.button("📝 仕入れ候補にメモ", key=f"memo_{name[:20]}", use_container_width=True):
+                        if st.button("📝 仕入れ候補にメモ", key=f"memo_pw_{i}", use_container_width=True):
                             show_paywall_dialog()
                     else:
-                        if st.button("📝 仕入れ候補にメモ", key=f"memo_{name[:20]}"):
+                        if st.button("📝 仕入れ候補にメモ", key=f"memo_{i}"):
                             st.session_state.memo_list.append({
                                 "name": name,
                                 "jan": "",

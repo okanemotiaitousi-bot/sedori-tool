@@ -1,4 +1,5 @@
 import streamlit as st
+import sheets as gs
 
 st.set_page_config(
     page_title="せどり目利きツール",
@@ -120,5 +121,14 @@ def _run_pages():
     ])
     pg.run()
 
+
+# ── 検索履歴をシートから読み込む（セッション内1回のみ）────────
+if not st.session_state.get("_history_loaded"):
+    _load_uid = st.session_state.get("user_id", "default")
+    if gs.is_enabled() and _load_uid != "default":
+        _loaded_h = gs.load_search_history(_load_uid)
+        if _loaded_h:
+            st.session_state.search_history = _loaded_h
+    st.session_state["_history_loaded"] = True
 
 _run_pages()
