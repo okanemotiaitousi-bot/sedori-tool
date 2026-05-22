@@ -6,3 +6,5 @@ __pycache__/
 メルカリ引き継ぎ.txt
 mercari_watch.py
 profit_calc.py
+*.wav
+*.vvproj
