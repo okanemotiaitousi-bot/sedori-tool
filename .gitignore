@@ -3,3 +3,6 @@ __pycache__/
 *.pyo
 .env
 .streamlit/secrets.toml
+メルカリ引き継ぎ.txt
+mercari_watch.py
+profit_calc.py
